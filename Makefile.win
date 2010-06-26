@@ -1,0 +1,45 @@
+# Project: dynamic
+# Makefile created by Dev-C++ 4.9.9.2
+
+CPP  = g++.exe
+CC   = gcc.exe
+WINDRES = windres.exe
+RES  = 
+OBJ  = main.o hex.o bin.o ram.o dynarec.o cache.o $(RES)
+LINKOBJ  = main.o hex.o bin.o ram.o dynarec.o cache.o $(RES)
+LIBS =  -L"C:/Dev-Cpp/lib" -O0  
+INCS =  -I"C:/Dev-Cpp/include" 
+CXXINCS =  -I"C:/Dev-Cpp/lib/gcc/mingw32/3.4.2/include"  -I"C:/Dev-Cpp/include/c++/3.4.2/backward"  -I"C:/Dev-Cpp/include/c++/3.4.2/mingw32"  -I"C:/Dev-Cpp/include/c++/3.4.2"  -I"C:/Dev-Cpp/include" 
+BIN  = dynamic.exe
+CXXFLAGS = $(CXXINCS) -O0  
+CFLAGS = $(INCS) -O0  
+RM = rm -f
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before dynamic.exe all-after
+
+
+clean: clean-custom
+	${RM} $(OBJ) $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(LINKOBJ) -o "dynamic.exe" $(LIBS)
+
+main.o: main.c
+	$(CC) -c main.c -o main.o $(CFLAGS)
+
+hex.o: hex.c
+	$(CC) -c hex.c -o hex.o $(CFLAGS)
+
+bin.o: bin.c
+	$(CC) -c bin.c -o bin.o $(CFLAGS)
+
+ram.o: ram.c
+	$(CC) -c ram.c -o ram.o $(CFLAGS)
+
+dynarec.o: dynarec.c
+	$(CC) -c dynarec.c -o dynarec.o $(CFLAGS)
+
+cache.o: cache.c
+	$(CC) -c cache.c -o cache.o $(CFLAGS)
