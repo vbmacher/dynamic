@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <getopt.h>
 
 #include "bin.h"
 #include "ram.h"
@@ -26,6 +27,14 @@
 #define OK 0
 
 
+static struct option options[] =	{{"help", no_argument, NULL, 'h' },
+                           {"save-code", optional_argument, NULL, 'S'},
+                           {"template", no_argument, NULL, 't'},
+                           {"verbose", no_argument, NULL, 'v'},
+                           {"summary", no_argument, NULL, 's'},
+                           {"interpret", no_argument, NULL, 'i'},
+                           {0,0,0,0}};
+
 static unsigned char *program; // loaded program, corresponds with operating memory
 
 int main(int argc, char *argv[])
@@ -34,16 +43,48 @@ int main(int argc, char *argv[])
   clock_t start, end;
   BASIC_BLOCK *tmp;
   char input_str[INPUT_CHARS];
+  int opt_index, opt;
   
-  printf("dynamic 0.1b\n\tDynamic Translator and emulator of RAM programs\n\n");
+  while(1) {
+    opt = getopt_long(argc, argv, "hS::tvsi", options, &opt_index);
+    
+    if (opt == -1)
+      break;
+      
+    switch(opt) {
+      case 'h':
+        printf("dynamic 0.1b\n\tDynamic Translator and emulator of RAM programs\n\n" \
+               "Usage:\n" \
+               "\t-h --help\tThis help screen\n" \
+               "\t-S --save-code [filename_base]\tLets the dynamic to save generated code to file(s).\n" \
+               "\t-t --template\tUse teplate-based dynamic translation instead of direct translation.\n" \
+               "\t-v --verbose\tHides all output (prints only the results from the output tape).\n" \
+               "\t-s --summary\tPrints summary information while performing the translation.\n" \
+               "\t-i --interpret\tPerforms also interpretation.\n");
+        break;
+      case 'S':
+        break;
+      case 't':
+        break;
+      case 'v':
+        break;
+      case 's':
+        break;
+      case 'i':
+        break;
+      default: opt = -1; break;
+    }
+    if (opt == -1)
+      break;
+  }
 
-  if (argc < 2) {
-    printf("Usage: dynamic [path/to/ram/program]\n");
+  if (optind >= argc) {
+    printf("\nUsage: dynamic [options] path/to/ram/program\n");
     return ERROR_MISSING_ARGS;
   }
 
   /* load RAM program */
-  program = (unsigned char *)bin_load(argv[1]);
+  program = (unsigned char *)bin_load(argv[optind]);
 
   if (program == NULL)
     return ERROR_LOAD;
