@@ -15,9 +15,11 @@
 
 /* microcode excludes following instructions:
      halt, jmp, jz, jgtz
-   poznatky:
-      - nepouzivat lokalne premenne (potom gcc prida na konci "leave" instrukciu miesto "pop ebp")
+   poznatky pre sablony kodu:
+      - ak zistujem velkost kodu funkcie automaticky,  nepouzivat lokalne
+        premenne (potom gcc prida na konci "leave" instrukciu miesto "pop ebp")
       - nevolat funkcie
+      - nepouzivat optimalizaciu
    co spomaluje:
       - ked je vela skokov
  */

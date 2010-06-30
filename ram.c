@@ -58,7 +58,6 @@ void ram_output() {
   
   for (i = 0; i < stop; i++)
     printf("%d ", ram_env.output[i]);
-  
   printf("\n");
 }
 
