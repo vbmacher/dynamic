@@ -20,12 +20,7 @@
 #include "cache.h"
 #include "dynarec.h"
 
-#define INPUT_CHARS 100
-
-#define ERROR_MISSING_ARGS 1
-#define ERROR_LOAD 2
-#define OK 0
-
+#include "main.h"
 
 static struct option options[] =	{{"help", no_argument, NULL, 'h' },
                            {"save-code", optional_argument, NULL, 'S'},
@@ -34,6 +29,9 @@ static struct option options[] =	{{"help", no_argument, NULL, 'h' },
                            {"summary", no_argument, NULL, 's'},
                            {"interpret", no_argument, NULL, 'i'},
                            {0,0,0,0}};
+int cmd_options;
+char *code_filename;
+
 
 static unsigned char *program; // loaded program, corresponds with operating memory
 
@@ -45,6 +43,7 @@ int main(int argc, char *argv[])
   char input_str[INPUT_CHARS];
   int opt_index, opt;
   
+  code_filename = NULL;
   while(1) {
     opt = getopt_long(argc, argv, "hS::tvsi", options, &opt_index);
     
@@ -63,14 +62,21 @@ int main(int argc, char *argv[])
                "\t-i --interpret\tPerforms also interpretation.\n");
         break;
       case 'S':
+        cmd_options |= CMD_SAVE_CODE;
+        if (optarg)
+          code_filename = optarg;
         break;
       case 't':
+        cmd_options |= CMD_TEMPLATE;
         break;
       case 'v':
+        cmd_options |= CMD_VERBOSE;
         break;
       case 's':
+        cmd_options |= CMD_SUMMARY;
         break;
       case 'i':
+        cmd_options |= CMD_INTERPRET;
         break;
       default: opt = -1; break;
     }
@@ -78,81 +84,106 @@ int main(int argc, char *argv[])
       break;
   }
 
+  // chyba dalsi operand
   if (optind >= argc) {
     printf("\nUsage: dynamic [options] path/to/ram/program\n");
     return ERROR_MISSING_ARGS;
   }
 
   /* load RAM program */
+  if (cmd_options & CMD_SUMMARY)
+    printf("Loading file: %s\n", argv[optind]);
   program = (unsigned char *)bin_load(argv[optind]);
 
-  if (program == NULL)
+  if (program == NULL) {
+    if (cmd_options & CMD_SUMMARY)
+      printf("Error loading file: %s\n", argv[optind]);
     return ERROR_LOAD;
+  }
 
-  printf("\nEmulating program:\n");
-  bin_print(program);
+  if (cmd_options & CMD_SUMMARY) {
+    printf("\nEmulating program:\n");
+    bin_print(program);
+  }
 
-  printf("Initializing...\n");
+  if (cmd_options & CMD_SUMMARY)
+    printf("Initializing...\n");
   ram_init(INPUT_CHARS);
   cache_init();
   
-  printf("Enter input tape (max. %d chars):", INPUT_CHARS);
+  if (!(cmd_options & CMD_VERBOSE))
+    printf("Enter input tape (max. %d chars):", INPUT_CHARS);
   scanf("%s", input_str);
 
+  // convert the input tape into binary form
   int i,l=strlen(input_str);
   for (i = 0; i < l; i++)
     ram_env.input[i] = input_str[i]-'0';
 
-  printf("Interpreting...\n");
+  if (cmd_options & CMD_INTERPRET) {
+    if (!(cmd_options & CMD_VERBOSE))
+      printf("Interpreting...\n");
   
+    start = clock();
+    while ((status = ram_interpret(program)) == RAM_OK)
+      ;
+    end = clock();
+
+    if (!(cmd_options & CMD_VERBOSE))
+      printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", status,
+        ram_error(status), (double)((double)end-(double)start));
+
+    if (!(cmd_options & CMD_VERBOSE))
+      printf("\nOutput tape:\n\t");
+    ram_output();
+  
+    char *input = ram_env.input;
+    ram_init(INPUT_CHARS);
+    strcpy(ram_env.input, input);
+    free(input);
+  }
+  
+  if (!(cmd_options & CMD_VERBOSE))
+    printf("Emulating using dynamic translation...\n");
+    
   start = clock();
-  while ((status = ram_interpret(program)) == RAM_OK)
-    ;
-  end = clock();
-
-  printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", status,
-    ram_error(status), (double)((double)end-(double)start));
-
-  printf("\nOutput tape:\n\t");
-  ram_output();
-  
-  ram_destroy();
-  ram_init(INPUT_CHARS);
-  printf("Enter input tape (max. %d chars):", INPUT_CHARS);
-  scanf("%s", ram_env.input);
-  
-  l=strlen(input_str);
-  for (i = 0; i < l; i++)
-    ram_env.input[i] = input_str[i]-'0';
-
-  printf("Emulating using dynamic translation...\n");
-  start = clock();
-
   do {    
     tmp = cache_get_block(ram_env.pc);
     if (tmp == NULL) {
+      if (cmd_options & CMD_SUMMARY)
+        printf("\tTranslating (PC=%d)...\n", ram_env.pc);
       tmp = cache_create_block(ram_env.pc);
       if (tmp == NULL) {
+        if (cmd_options & CMD_SUMMARY)
+          printf("\t\tFlushing cache...\n");
         cache_flush();
         tmp = cache_create_block(ram_env.pc);
       }
       dyn_translate(tmp, program);
     } else if (tmp->size) {
+      if (cmd_options & CMD_SUMMARY)
+        printf("\tExecuting code (PC=%d)...\n", tmp->address);
       (*(void (*)())tmp->code)();
       ram_env.pc += tmp->size;
-    } else
+    } else {
+      if (cmd_options & CMD_SUMMARY)
+        printf("\tInterpreting (PC=%d)...\n", ram_env.pc);
       ram_env.state = ram_interpret(program);
+    }
   } while ((ram_env.state == RAM_OK) && (ram_env.pc < ram_size));
   end = clock();
 
-  printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", status,
-    ram_error(status), (double)((double)end-(double)start));
+  if (!(cmd_options & CMD_VERBOSE))
+    printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", ram_env.state,
+      ram_error(ram_env.state), (double)((double)end-(double)start));
   
-  printf("\nOutput tape:\n\t");
+  if (!(cmd_options & CMD_VERBOSE))
+    printf("\nOutput tape:\n\t");
   ram_output();
   
   cache_destroy();
   ram_destroy();
-  
+  free(program);
+
   return OK;
 }

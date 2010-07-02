@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "cache.h"
+#include "main.h"
 
 static BASIC_BLOCK *cache;       /* Prekladova cache, to je zaklad. */
 static int freeBlock = 0; /* index dalsieho volneho bloku*/
@@ -61,10 +62,12 @@ BASIC_BLOCK *cache_get_block(int address) {
 BASIC_BLOCK *cache_create_block(int address) {
   if (freeBlock >= CACHE_BLOCKS)
     return NULL;
-//  printf("\tCreating block (freeBlock = %d)\n", freeBlock);
+  if (cmd_options & CMD_SUMMARY)
+    printf("\t\tCreating block (freeBlock = %d)\n", freeBlock);
   cache[freeBlock].address = address;
   cache[freeBlock++].code = (unsigned char *)calloc(1, CACHE_CODE_SIZE);
-  //printf("\t\tAllocated code: %x (beg. %x), address:%x, %d bytes\n", 
-   //   cache[freeBlock-1].code,&(cache[freeBlock-1]), cache[freeBlock-1].address, CACHE_CODE_SIZE);
+  if (cmd_options & CMD_SUMMARY)
+    printf("\t\tBlock: code=%x, beg.=%x, PC addr.=%x, size=%d\n", 
+      cache[freeBlock-1].code,&(cache[freeBlock-1]), cache[freeBlock-1].address, CACHE_CODE_SIZE);
   return &cache[freeBlock-1];
 }
