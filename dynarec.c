@@ -19,6 +19,32 @@ char *names[] = {"HALT","READ i","READ *i","WRITE =i","WRITE i","WRITE *i",
                  "ADD i","ADD *i","SUB =i","SUB i","SUB *i","MUL =i","MUL i",
                  "MUL *i","DIV =i","DIV i","DIV *i","JMP i","JGTZ i","JZ i",NULL};
 
+unsigned char *gen_codes[] = {
+  NULL,
+  "\xA1\0\0\0\0\x03\x05\0\0\0\0\x0F\xBE\0\xA3\0\0\0\0\xFF\x05\0\0\0\0", // 25
+  "\xA1\0\0\0\0\x03\x05\0\0\0\0\x0F\xBE\0\x8B\x15\0\0\0\0\x89\x04\x95\0\0\0\0\xFF\x05\0\0\0\0", // 33
+  "\xA1\0\0\0\0\x83\xF8\0\x7C\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x11\x05\0\0\0\0\xC7\0\0\0\0\0\xFF\x05\0\0\0\0", // 39
+  "\xA1\0\0\0\0\x83\xF8\0\x7C\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x13\x8B\x15\0\0\0\0\x05\0\0\0\0\x89\x10\xFF\x05\0\0\0\0", // 41
+  "\xA1\0\0\0\0\x83\xF8\0\x7C\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x1A\x8B\x15\0\0\0\0\x8B\x14\x95\0\0\0\0\x05\0\0\0\0\x89\x10\xFF\x05\0\0\0\0", // 48
+  "\xC7\x05\0\0\0\0\0\0\0\0", // 10 
+  "\xA1\0\0\0\0\xA3\0\0\0\0", // 10
+  "\xA1\0\0\0\0\x8B\x04\x85\0\0\0\0\xA3\0\0\0\0", // 17
+  "\xA1\0\0\0\0\xA3\0\0\0\0", // 10
+  "\xA1\0\0\0\0\x8B\x15\0\0\0\0\x89\x04\x95\0\0\0\0", // 18
+  "\x81\x05\0\0\0\0\0\0\0\0", // 10
+  "\x8B\x15\0\0\0\0\x01\x15\0\0\0\0", // 12
+  "\xA1\0\0\0\0\x8B\x04\x85\0\0\0\0\x01\x05\0\0\0\0", // 18
+  "\x81\x2D\0\0\0\0\0\0\0\0", // 10
+  "\x8B\x15\0\0\0\0\x29\x15\0\0\0\0", // 12
+  "\xA1\0\0\0\0\x8B\x04\x85\0\0\0\0\x29\x05\0\0\0\0", // 18
+  "\x69\x05\0\0\0\0\0\0\0\0\xA3\0\0\0\0", // 15  
+  "\xA1\0\0\0\0\xF7\x2D\0\0\0\0\xA3\0\0\0\0", // 16
+  "\xA1\0\0\0\0\x8B\x04\x85\0\0\0\0\xF7\x2D\0\0\0\0\xA3\0\0\0\0", // 23
+  "\xBB\0\0\0\0\x81\xFB\0\0\0\0\x75\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x0D\xA1\0\0\0\0\x99\xF7\xFB\xA3\0\0\0\0", // 38
+  ""
+
+  };
+
 /**
  * Tato funkcia "prilepi" kod-sablonu na koniec vysledneho kodu. Sablonovy
  * kod "oblepi" instrukciami, ktore ulozia do zasobnika parameter, ako sa uklada
@@ -91,242 +117,154 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
       printf("\t\t%s\n", names[*p]);
     switch (*p++) {
       case 1: // READ i
-        *target = 0xA1;
+        memcpy(target, gen_codes[1], 25);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_input);
-        *(target+5) = 0x03;
-        *(target+6) = 0x05;
         *(unsigned int *)(target+7) = (unsigned int)(&ram_env.input);
-        *(unsigned int *)(target+11) = 0xA300BE0F;
         *(unsigned int *)(target+15) = (unsigned int)&ram_env.r[*p++];
-        *(target+19) = 0xFF;
-        *(target+20) = 0x05;
-        *(unsigned int *)(target+21) = (unsigned int)&(ram_env.p_input);        
+        *(unsigned int *)(target+21) = (unsigned int)&ram_env.p_input;
         micro_size = 25;
         break;
       case 2: // READ *i 
-        *target = 0xA1;
+        memcpy(target, gen_codes[2], 33);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_input);
-        *(target+5) = 0x03;
-        *(target+6) = 0x05;
         *(unsigned int *)(target+7) = (unsigned int)(&ram_env.input);
-        *(unsigned int *)(target+11) = 0x8B00BE0F;
-        *(target+15) = 0x15;
         *(unsigned int *)(target+16) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+20) = 0x89;
-        *(target+21) = 0x04;
-        *(target+22) = 0x95;
         *(unsigned int *)(target+23) = (unsigned int)(&ram_env.r[0]);
-        *(target+27) = 0xFF;
-        *(target+28) = 0x05;
         *(unsigned int *)(target+29) = (unsigned int)(&ram_env.p_input);
         micro_size = 33;
         break;
       case 3: // WRITE =i
-        *target = 0xA1;
+        memcpy(target, gen_codes[3], 39);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_output);
-        *(target+5) = 0x83;
-        *(target+6) = 0xF8;
         *(target+7) = (unsigned char)(RAM_OUTPUT_SIZE);
-        *(unsigned int *)(target+8) = 0x05C70C7C;
         *(unsigned int *)(target+12) = (unsigned int)&ram_env.state;
         *(unsigned int *)(target+16) = (unsigned int)RAM_OUTPUT_FULL;
-        *(target+20) = 0xEB;
-        *(target+21) = 0x11;
-        *(target+22) = 0x05;
         *(unsigned int *)(target+23) = (unsigned int)&ram_env.output;
-        *(target+27) = 0xC7;
-        *(target+28) = 0x00;
         *(unsigned int *)(target+29) = (unsigned int)*p++;
-        *(target+33) = 0xFF;
-        *(target+34) = 0x05;
         *(unsigned int *)(target+35) = (unsigned int)&ram_env.p_output;
         micro_size = 39;
         break;      
       case 4: // WRITE i
-        *target = 0xA1;
+        memcpy(target, gen_codes[4], 41);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_output);
-        *(target+5) = 0x83;
-        *(target+6) = 0xF8;
         *(target+7) = (unsigned char)(RAM_OUTPUT_SIZE);
-        *(unsigned int *)(target+8) = 0x05C70C7C;
         *(unsigned int *)(target+12) = (unsigned int)&ram_env.state;
         *(unsigned int *)(target+16) = (unsigned int)RAM_OUTPUT_FULL;
-        *(unsigned int *)(target+20) = 0x158B13EB;
         *(unsigned int *)(target+24) = (unsigned int)&ram_env.r[*p++];
-        *(target+28) = 0x05;
         *(unsigned int *)(target+29) = (unsigned int)&ram_env.output;
-        *(unsigned int *)(target+33) = 0x05FF1089;
         *(unsigned int *)(target+37) = (unsigned int)&(ram_env.p_output);
         micro_size = 41;
         break;
       case 5: // WRITE *i
-        *target = 0xA1;
+        memcpy(target, gen_codes[5], 48);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_output);
-        *(target+5) = 0x83;
-        *(target+6) = 0xF8;
         *(target+7) = (unsigned char)(RAM_OUTPUT_SIZE);
-        *(unsigned int *)(target+8) = 0x05C70C7C;
         *(unsigned int *)(target+12) = (unsigned int)&ram_env.state;
         *(unsigned int *)(target+16) = (unsigned int)RAM_OUTPUT_FULL;
-        *(unsigned int *)(target+20) = 0x158B1AEB;
         *(unsigned int *)(target+24) = (unsigned int)&ram_env.r[*p++];
-        *(target+28) = 0x8B;
-        *(target+29) = 0x14;
-        *(target+30) = 0x95;
         *(unsigned int *)(target+31) = (unsigned int)&ram_env.r[0];
-        *(target+35) = 0x05;
         *(unsigned int *)(target+36) = (unsigned int)&ram_env.output;
-        *(unsigned int *)(target+40) = 0x05FF1089;
         *(unsigned int *)(target+44) = (unsigned int)&(ram_env.p_output);
         micro_size = 48;
         break;
       case 6: // LOAD =i
-        *target = 0xC7;
-        *(target+1) = 0x05;
+        memcpy(target, gen_codes[6], 10);
         *(unsigned int *)(target+2) = (unsigned int)&ram_env.r[0];
         *(unsigned int *)(target+6) = (unsigned int)*p++;
         micro_size = 10;
         break;
       case 7: // LOAD i
-        *target = 0xA1;
+        memcpy(target, gen_codes[7], 10);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+5) = 0xA3;
         *(unsigned int *)(target+6) = (unsigned int)(&ram_env.r[0]);
         micro_size = 10;
         break;
       case 8: // LOAD *i
-        *target = 0xA1;
+        memcpy(target, gen_codes[8], 17);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+5) = 0x8B;
-        *(target+6) = 0x04;
-        *(target+7) = 0x85;
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
-        *(target+12) = 0xA3;
         *(unsigned int *)(target+13) = (unsigned int)(&ram_env.r[0]);
         micro_size = 17;
         break;
       case 9: // STORE i
-        *target = 0xA1;
+        memcpy(target, gen_codes[9], 10);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[0]);
-        *(target+5) = 0xA3;
         *(unsigned int *)(target+6) = (unsigned int)(&ram_env.r[*p++]);
         micro_size = 10;
         break;
       case 10: // STORE *i
-        *target = 0xA1;
+        memcpy(target, gen_codes[10], 18);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[0]);
-        *(target+5) = 0x8B;
-        *(target+6) = 0x15;
         *(unsigned int *)(target+7) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+11) = 0x89;
-        *(target+12) = 0x04;
-        *(target+13) = 0x95;
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
         micro_size = 18;
         break;
       case 11: // ADD =i
-        *target = 0x81;
-        *(target+1) = 0x05;
+        memcpy(target, gen_codes[11], 10);
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+6) = (unsigned int)*p++;
         micro_size = 10;
         break;
       case 12: // ADD i
-        *target = 0x8B;
-        *(target+1) = 0x15;
+        memcpy(target, gen_codes[12], 12);
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+6) = 0x01;
-        *(target+7) = 0x15;
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
         micro_size = 12;
         break;
       case 13: // ADD *i 
-        *target = 0xA1;
+        memcpy(target, gen_codes[13], 18);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+5) = 0x8B;
-        *(target+6) = 0x04;
-        *(target+7) = 0x85;
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
-        *(target+12) = 0x01;
-        *(target+13) = 0x05;
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
         micro_size = 18;    
         break;
       case 14: // SUB =i
-        *target = 0x81;
-        *(target+1) = 0x2D;
+        memcpy(target, gen_codes[14], 10);
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+6) = (unsigned int)*p++;
         micro_size = 10;
         break;
       case 15: // SUB i 
-        *target = 0x8B;
-        *(target+1) = 0x15;
+        memcpy(target, gen_codes[15], 12);
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+6) = 0x29;
-        *(target+7) = 0x15;
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
         micro_size = 12;
         break;
       case 16: // SUB *i
-        *target = 0xA1;
+        memcpy(target, gen_codes[16], 18);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+5) = 0x8B;
-        *(target+6) = 0x04;
-        *(target+7) = 0x85;
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
-        *(target+12) = 0x29;
-        *(target+13) = 0x05;
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
         micro_size = 18;
         break;
       case 17: // MUL =i
-        *target = 0x69;
-        *(target+1) = 0x05;
+        memcpy(target, gen_codes[17], 15);
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+6) = (unsigned int)*p++;
-        *(target+10) = 0xA3;
         *(unsigned int *)(target+11) = (unsigned int)(&ram_env.r[0]);
         micro_size = 15;
         break;
       case 18: // MUL i
-        *target = 0xA1;
+        memcpy(target, gen_codes[18], 16);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+5) = 0xF7;
-        *(target+6) = 0x2D;
         *(unsigned int *)(target+7) = (unsigned int)(&ram_env.r[0]);
-        *(target+11) = 0xA3;
         *(unsigned int *)(target+12) = (unsigned int)(&ram_env.r[0]);
         micro_size = 16;
         break;
       case 19: // MUL *i
-        *target = 0xA1;
+        memcpy(target, gen_codes[19], 23);
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
-        *(target+5) = 0x8B;
-        *(target+6) = 0x04;
-        *(target+7) = 0x85;
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
-        *(target+12) = 0xF7;
-        *(target+13) = 0x2D;
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
-        *(target+18) = 0xA3;
         *(unsigned int *)(target+19) = (unsigned int)(&ram_env.r[0]);
         micro_size = 23;
         break;
       case 20: // DIV =i
-        *target = 0xBB;
+        memcpy(target, gen_codes[20], 38);
         *(unsigned int *)(target+1) = (unsigned int)*p++;
-        *(target+5) = 0x81;
-        *(target+6) = 0xFB;
-        *(unsigned int *)(target+7) = (unsigned int)0;
-        *(unsigned int *)(target+11) = 0x05C70C75;
         *(unsigned int *)(target+15) = (unsigned int)(&ram_env.state);
         *(unsigned int *)(target+19) = (unsigned int)RAM_DIVISION_BY_ZERO;
-        *(target+23) = 0xEB;
-        *(target+24) = 0x0D;
-        *(target+25) = 0xA1;
         *(unsigned int *)(target+26) = (unsigned int)(&ram_env.r[0]);
-        *(unsigned int *)(target+30) = 0xA3FBF799;
         *(unsigned int *)(target+34) = (unsigned int)(&ram_env.r[0]);
         micro_size = 38;
         break;
