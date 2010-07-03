@@ -150,24 +150,22 @@ static inline void micro_div_s(int s) {
   ram_env.r[0] /= s;
 }
 
-#define M_DIV_I 53
+#define M_DIV_I 60
 static inline void micro_div_i(int i) {
-  register int t = ram_env.r[i];
-  if (!t) {
+  if (!ram_env.r[i]) {
     ram_env.state = RAM_DIVISION_BY_ZERO;
     return;
   }
-  ram_env.r[0] /= t;
+  ram_env.r[0] /= ram_env.r[i];
 }
 
-#define M_DIV_II 60
+#define M_DIV_II 74
 static inline void micro_div_ii(int i) {
-  register int t = ram_env.r[ram_env.r[i]];
-  if (!t) {
+  if (!ram_env.r[ram_env.r[i]]) {
     ram_env.state = RAM_DIVISION_BY_ZERO;
     return;
   }
-  ram_env.r[0] /= t;
+  ram_env.r[0] /= ram_env.r[ram_env.r[i]];
 }
 
 #endif

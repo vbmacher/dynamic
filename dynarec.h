@@ -11,5 +11,6 @@
 #include "cache.h"
 
 void dyn_translate(BASIC_BLOCK *block, unsigned char *program);
+void dyn_template(BASIC_BLOCK *block, unsigned char *program);
 
 #endif
