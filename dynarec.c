@@ -48,17 +48,18 @@ unsigned char *gen_codes[] = {
 /**
  * Tato funkcia "prilepi" kod-sablonu na koniec vysledneho kodu. Sablonovy
  * kod "oblepi" instrukciami, ktore ulozia do zasobnika parameter, ako sa uklada
- * pri normalnom volani funkcie. Dalej "odreze" prvu a posledne dve instrukcie
- * (tj. "push ebp" a "pop ebp"+"ret")
+ * pri normalnom volani funkcie. Dalej "odreze" prvu instrukciu (tj. "push ebp")
+ * a poslednych @leave bytov (zvycajne 2 byty - "pop ebp"+"ret")
  *
  * @param target - cielovy kod
  * @param param  - parameter, ktory sa ma ulozit do zasobnika
  * @param f1     - kod-sablona jednej instrukcie
  * @param size   - velkost kodu-sablony
+ * @param leave  - velkost bytov, ktore sa maju "odrezat" z konca
  * @return Skutocna velkost vygenerovaneho kodu v bytoch
  */
 inline int dyn_gen_param(unsigned char *target, unsigned char param,
-    unsigned char *f1, int size) {
+    unsigned char *f1, int size, int leave) {
   register unsigned int micro_size;
 
   if (cmd_options & CMD_SUMMARY)
@@ -78,17 +79,23 @@ inline int dyn_gen_param(unsigned char *target, unsigned char param,
   if (cmd_options & CMD_SUMMARY)
     printf("\t\t\tCopying: %x -> %x, size=%d...\n", f1+1, target, micro_size);
   memcpy(target, f1+1, micro_size);
-  target += (micro_size-2); // vynechavam "pop %ebp" a "ret"
+  target += (micro_size-leave); // vynechavam "pop %ebp" a "ret"
 
   // vratim spat zasobnik (akoze "pop ebp" + "ret")
   *target++ = 0x83;
   *target++ = 0xC4;
-  *target++ = 0x0C; //asm("add $0x09,%esp"); // 1 byte je v zasobniku (miesto "pop esp")
+  
+  //asm("add $0xXX,%esp");
+  // ak (leave == 1) tak predpokladam ze kod-sablona nema na konci "pop ebp" (4 byty),
+  // ale instrukciu "leave", ktora zo zasobnika odstrani tie 4 byty (a plus nejake
+  // dalsie, lebo ked gcc pouzije instrukciu "leave" znamena to ze pouzival lokalne
+  // premenne, ktore su tiez ulozene v zasobniku).
+  *target++ = (unsigned char)(8 + ((leave == 2) ? 4 : 0)); 
 
   if (cmd_options & CMD_SUMMARY)
-    printf("\t\t\tFinal code size: %d\n", micro_size+6);
+    printf("\t\t\tFinal code size: %d\n", micro_size+8-leave);
 
-  return micro_size + 6;
+  return micro_size + 8 - leave;
 }
 
 
@@ -269,10 +276,10 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
         micro_size = 38;
         break;
       case 21: // DIV i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_i, M_DIV_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_i, M_DIV_I,1);
         break;
       case 22: // DIV *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_ii, M_DIV_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_ii, M_DIV_II,1);
         break;
       default: // other/unknown instruction
         micro_size = 0;
@@ -290,12 +297,12 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
     if (cmd_options & CMD_SUMMARY)
       printf("\t\tBlock translated with size: %d\n", block->size);
     if (cmd_options & CMD_SAVE_CODE) {
-      char filename[30]; // how much is enough??
+      char filename[30];
       if (code_filename != NULL) {
-        strcpy((char*)&filename, code_filename);
-        sprintf((char*)&filename+strlen(code_filename), "-%x.out", block->address);
+          strcpy((char*)&filename, code_filename);
+          sprintf((char*)&filename+strlen(code_filename), "-%x.out", block->address);
       } else
-        sprintf((char*)&filename, "code-%x.out", block->address);
+          sprintf((char*)&filename, "code-%x.out", block->address);
       FILE *fout = fopen(filename ,"wb");
       fwrite(block->code, a_size+2, 1, fout);
       fclose(fout);
@@ -329,70 +336,70 @@ void dyn_template(BASIC_BLOCK *block, unsigned char *program) {
       printf("\t\t%s\n", names[*p]);
     switch (*p++) {
       case 1: // READ i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_read_i, M_READ_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_read_i, M_READ_I,2);
         break;
       case 2: // READ *i 
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_read_ii, M_READ_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_read_ii, M_READ_II,2);
         break;
       case 3: // WRITE =i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_write_s, M_WRITE_S);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_write_s, M_WRITE_S,2);
         break;      
       case 4: // WRITE i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_write_i, M_WRITE_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_write_i, M_WRITE_I,2);
         break;
       case 5: // WRITE *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_write_ii, M_WRITE_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_write_ii, M_WRITE_II,2);
         break;
       case 6: // LOAD =i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_load_s, M_LOAD_S);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_load_s, M_LOAD_S,2);
         break;
       case 7: // LOAD i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_load_i, M_LOAD_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_load_i, M_LOAD_I,2);
         break;
       case 8: // LOAD *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_load_ii, M_LOAD_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_load_ii, M_LOAD_II,2);
         break;
       case 9: // STORE i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_store_i, M_STORE_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_store_i, M_STORE_I,2);
         break;
       case 10: // STORE *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_store_ii, M_STORE_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_store_ii, M_STORE_II,2);
         break;
       case 11: // ADD =i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_add_s, M_ADD_S);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_add_s, M_ADD_S,2);
         break;
       case 12: // ADD i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_add_i, M_ADD_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_add_i, M_ADD_I,2);
         break;
       case 13: // ADD *i 
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_add_ii, M_ADD_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_add_ii, M_ADD_II,2);
         break;
       case 14: // SUB =i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_sub_s, M_SUB_S);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_sub_s, M_SUB_S,2);
         break;
       case 15: // SUB i 
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_sub_i, M_SUB_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_sub_i, M_SUB_I,2);
         break;
       case 16: // SUB *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_sub_ii, M_SUB_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_sub_ii, M_SUB_II,2);
         break;
       case 17: // MUL =i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_mul_s, M_MUL_S);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_mul_s, M_MUL_S,2);
         break;
       case 18: // MUL i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_mul_i, M_MUL_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_mul_i, M_MUL_I,2);
         break;
       case 19: // MUL *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_mul_ii, M_MUL_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_mul_ii, M_MUL_II,2);
         break;
       case 20: // DIV =i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_s, M_DIV_S);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_s, M_DIV_S,2);
         break;
       case 21: // DIV i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_i, M_DIV_I);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_i, M_DIV_I,1);
         break;
       case 22: // DIV *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_ii, M_DIV_II);
+        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_ii, M_DIV_II,1);
         break;
       default: // other/unknown instruction
         micro_size = 0;
@@ -410,12 +417,12 @@ void dyn_template(BASIC_BLOCK *block, unsigned char *program) {
     if (cmd_options & CMD_SUMMARY)
       printf("\t\tBlock translated with size: %d\n", block->size);
     if (cmd_options & CMD_SAVE_CODE) {
-      char filename[30]; // how much is enough??
+      char filename[30];
       if (code_filename != NULL) {
-        strcpy((char*)&filename, code_filename);
-        sprintf((char*)&filename+strlen(code_filename), "-%x.out", block->address);
+          strcpy((char*)&filename, code_filename);
+          sprintf((char*)&filename+strlen(code_filename), "-%x.out", block->address);
       } else
-        sprintf((char*)&filename, "code-%x.out", block->address);
+          sprintf((char*)&filename, "code-%x.out", block->address);
       FILE *fout = fopen(filename ,"wb");
       fwrite(block->code, a_size+2, 1, fout);
       fclose(fout);

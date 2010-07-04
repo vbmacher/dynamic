@@ -152,7 +152,7 @@ static inline void micro_div_s(int s) {
 
 #define M_DIV_I 60
 static inline void micro_div_i(int i) {
-  if (!ram_env.r[i]) {
+  if (ram_env.r[i] == 0) {
     ram_env.state = RAM_DIVISION_BY_ZERO;
     return;
   }
@@ -161,7 +161,7 @@ static inline void micro_div_i(int i) {
 
 #define M_DIV_II 74
 static inline void micro_div_ii(int i) {
-  if (!ram_env.r[ram_env.r[i]]) {
+  if (ram_env.r[ram_env.r[i]] == 0) {
     ram_env.state = RAM_DIVISION_BY_ZERO;
     return;
   }
