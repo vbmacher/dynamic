@@ -41,8 +41,9 @@ unsigned char *gen_codes[] = {
   "\xA1\0\0\0\0\xF7\x2D\0\0\0\0\xA3\0\0\0\0", // 16
   "\xA1\0\0\0\0\x8B\x04\x85\0\0\0\0\xF7\x2D\0\0\0\0\xA3\0\0\0\0", // 23
   "\xBB\0\0\0\0\x81\xFB\0\0\0\0\x75\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x0D\xA1\0\0\0\0\x99\xF7\xFB\xA3\0\0\0\0", // 38
+  "\x8B\x1D\0\0\0\0\x81\xFB\0\0\0\0\x75\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x0D\xA1\0\0\0\0\x99\xF7\xFB\xA3\0\0\0\0", // 39
+  "\x8B\x1D\0\0\0\0\x8B\x1C\x9D\0\0\0\0\x81\xFB\0\0\0\0\x75\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x0D\xA1\0\0\0\0\x99\xF7\xFB\xA3\0\0\0\0", // 46
   ""
-
   };
 
 /**
@@ -276,10 +277,23 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
         micro_size = 38;
         break;
       case 21: // DIV i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_i, M_DIV_I,1);
+        memcpy(target, gen_codes[21], 39);
+        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+16) = (unsigned int)(&ram_env.state);
+        *(unsigned int *)(target+20) = (unsigned int)RAM_DIVISION_BY_ZERO;
+        *(unsigned int *)(target+27) = (unsigned int)(&ram_env.r[0]);
+        *(unsigned int *)(target+35) = (unsigned int)(&ram_env.r[0]);
+        micro_size = 39;
         break;
       case 22: // DIV *i
-        micro_size = dyn_gen_param(target, *p++, (unsigned char*)&micro_div_ii, M_DIV_II,1);
+        memcpy(target, gen_codes[22], 46);
+        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+9) = (unsigned int)(&ram_env.r[0]);
+        *(unsigned int *)(target+23) = (unsigned int)(&ram_env.state);
+        *(unsigned int *)(target+27) = (unsigned int)RAM_DIVISION_BY_ZERO;
+        *(unsigned int *)(target+34) = (unsigned int)(&ram_env.r[0]);
+        *(unsigned int *)(target+42) = (unsigned int)(&ram_env.r[0]);
+        micro_size = 46;
         break;
       default: // other/unknown instruction
         micro_size = 0;
