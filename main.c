@@ -52,14 +52,18 @@ int main(int argc, char *argv[])
       
     switch(opt) {
       case 'h':
-        printf("dynamic 0.1b\n\tDynamic Translator and emulator of RAM programs\n\n" \
-               "Usage:\n" \
-               "\t-h --help\tThis help screen\n" \
-               "\t-S --save-code [filename_base]\tLets the dynamic to save generated code to file(s).\n" \
-               "\t-t --template\tUse teplate-based dynamic translation instead of direct translation.\n" \
-               "\t-v --verbose\tHides all output (prints only the results from the output tape).\n" \
-               "\t-s --summary\tPrints summary information while performing the translation.\n" \
-               "\t-i --interpret\tPerforms also interpretation.\n");
+        printf("dynamic 0.2b\n\tDynamic Translator and emulator of RAM programs\n\n" \
+"Usage:\n" \
+"\t-h --help                       - This help screen\n" \
+"\t-S --save-code [filename_base]  - Lets the dynamic to save generated\n" \
+"\t                                  code to file(s).\n" \
+"\t-t --template                   - Use teplate-based dynamic translation\n" \
+"\t                                  instead of direct translation.\n" \
+"\t-v --verbose                    - Hides all output (prints only the\n" \
+"\t                                  results from the output tape).\n" \
+"\t-s --summary                    - Prints summary information while\n" \
+"\t                                  performing the translation.\n" \
+"\t-i --interpret                  - Perform interpretation.\n\n");
         break;
       case 'S':
         cmd_options |= CMD_SAVE_CODE;
@@ -86,7 +90,7 @@ int main(int argc, char *argv[])
 
   // chyba dalsi operand
   if (optind >= argc) {
-    printf("\nUsage: dynamic [options] path/to/ram/program\n");
+    printf("Usage: dynamic [options] path/to/ram/program\n\n(Type 'dynamic --help' for help)\n");
     return ERROR_MISSING_ARGS;
   }
 
