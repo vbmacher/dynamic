@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
       
     switch(opt) {
       case 'h':
-        printf("dynamic 0.2b\n\tDynamic Translator and emulator of RAM programs\n\n" \
+        printf("dynamic 0.21b\n\tDynamic Translator and emulator of RAM programs\n\n" \
 "Usage:\n" \
 "\t-h --help                       - This help screen\n" \
 "\t-S --save-code [filename_base]  - Lets the dynamic to save generated\n" \
