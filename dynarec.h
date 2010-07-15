@@ -10,6 +10,11 @@
 
 #include "cache.h"
 
+typedef struct {
+  unsigned char* code;
+  int size;
+} gen_code_struct;
+
 void dyn_translate(BASIC_BLOCK *block, unsigned char *program);
 void dyn_template(BASIC_BLOCK *block, unsigned char *program);
 

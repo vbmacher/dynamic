@@ -155,24 +155,24 @@ int main(int argc, char *argv[])
     do {    
       tmp = cache_get_block(ram_env.pc);
       if (tmp == NULL) {
-        if (cmd_options & CMD_SUMMARY)
-          printf("\tTranslating (PC=%d)...\n", ram_env.pc);
+//        if (cmd_options & CMD_SUMMARY)
+  //        printf("\tTranslating (PC=%d)...\n", ram_env.pc);
         tmp = cache_create_block(ram_env.pc);
         if (tmp == NULL) {
-          if (cmd_options & CMD_SUMMARY)
-            printf("\t\tFlushing cache...\n");
+    //      if (cmd_options & CMD_SUMMARY)
+      //      printf("\t\tFlushing cache...\n");
           cache_flush();
           tmp = cache_create_block(ram_env.pc);
         }
         dyn_template(tmp, program);
-      } else if (tmp->size) {
-        if (cmd_options & CMD_SUMMARY)
-          printf("\tExecuting code (PC=%d)...\n", tmp->address);
+      } else if (tmp->size > 0) {
+//        if (cmd_options & CMD_SUMMARY)
+  //        printf("\tExecuting code (PC=%d)...\n", tmp->address);
         (*(void (*)())tmp->code)();
         ram_env.pc += tmp->size;
       } else {
-        if (cmd_options & CMD_SUMMARY)
-          printf("\tInterpreting (PC=%d)...\n", ram_env.pc);
+//        if (cmd_options & CMD_SUMMARY)
+  //        printf("\tInterpreting (PC=%d)...\n", ram_env.pc);
         ram_env.state = ram_interpret(program);
       }
     } while ((ram_env.state == RAM_OK) && (ram_env.pc < ram_size));
@@ -182,24 +182,23 @@ int main(int argc, char *argv[])
     do {    
       tmp = cache_get_block(ram_env.pc);
       if (tmp == NULL) {
-        if (cmd_options & CMD_SUMMARY)
-          printf("\tTranslating (PC=%d)...\n", ram_env.pc);
-        tmp = cache_create_block(ram_env.pc);
-        if (tmp == NULL) {
-          if (cmd_options & CMD_SUMMARY)
-            printf("\t\tFlushing cache...\n");
+//        if (cmd_options & CMD_SUMMARY)
+  //        printf("\tTranslating (PC=%d)...\n", ram_env.pc);
+        if ((tmp = cache_create_block(ram_env.pc)) == NULL) {
+    //      if (cmd_options & CMD_SUMMARY)
+      //      printf("\t\tFlushing cache...\n");
           cache_flush();
           tmp = cache_create_block(ram_env.pc);
         }
         dyn_translate(tmp, program);
-      } else if (tmp->size) {
-        if (cmd_options & CMD_SUMMARY)
-          printf("\tExecuting code (PC=%d)...\n", tmp->address);
+      } else if (tmp->size > 0) {
+//        if (cmd_options & CMD_SUMMARY)
+  //        printf("\tExecuting code (PC=%d)...\n", tmp->address);
         (*(void (*)())tmp->code)();
         ram_env.pc += tmp->size;
       } else {
-        if (cmd_options & CMD_SUMMARY)
-          printf("\tInterpreting (PC=%d)...\n", ram_env.pc);
+    //    if (cmd_options & CMD_SUMMARY)
+      //    printf("\tInterpreting (PC=%d)...\n", ram_env.pc);
         ram_env.state = ram_interpret(program);
       }
     } while ((ram_env.state == RAM_OK) && (ram_env.pc < ram_size));

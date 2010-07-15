@@ -12,9 +12,9 @@
 #define CACHE_CODE_SIZE 1024
 
 typedef struct bBAS_BLOCK {
-  int address;
+  int address;          // povodna adresa
   unsigned char *code;  // ?? 1K pre jeden blok
-  int size;
+  int size;             // velkost povodnych instrukcii
  // struct bBAS_BLOCK *next;
 } __attribute__((packed)) BASIC_BLOCK;
 

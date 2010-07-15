@@ -62,12 +62,14 @@ void *bin_load(const char *filename) {
  */
 int bin_parse(FILE *fin, unsigned char *buffer, const int max_size) {
   int p = 0;
+  unsigned int t;
   while (!feof(fin)) {
     if (p == max_size-1) {
       printf("Warning: Ignoring some input\n");
       break;
     }
-    fscanf(fin, "%d ", &buffer[p++]);
+    fscanf(fin, "%u ", &t);
+    buffer[p++] = (unsigned char)(t & 0xFF);
   }
   buffer[p] = 0;
   return p;

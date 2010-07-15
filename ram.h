@@ -17,8 +17,8 @@
 #define RAM_OUTPUT_SIZE 100
 
 typedef struct {
-  int pc;            /* program counter */
-  int r[100];        /* registers */
+  unsigned int pc;            /* program counter */
+  unsigned int r[100];        /* registers */
   char *input;       /* input tape */
   char output[RAM_OUTPUT_SIZE];  /* output tape, max. 100 chars */
   int p_input;       /* pointer to the next cell within the input tape */
