@@ -1,0 +1,28 @@
+The following is the translation table of RAM instructions.
+
+halt            0
+read i          1   i
+read *i         2   i
+write =i        3   i
+write i         4   i
+write *i        5   i
+load =i         6   i
+load i          7   i
+load *i         8   i
+store i         9   i
+store *i        10  i
+add =i          11  i
+add i           12  i
+add *i          13  i
+sub =i          14  i
+sub i           15  i
+sub *i          16  i
+mul =i          17  i
+mul i           18  i
+mul *i          19  i
+div =i          20  i
+div i           21  i
+div *i          22  i
+jmp i           23  i
+jgtz i          24  i
+jz i            25  i
