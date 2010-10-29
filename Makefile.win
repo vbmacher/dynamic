@@ -5,8 +5,8 @@ CPP  = g++.exe
 CC   = gcc.exe
 WINDRES = windres.exe
 RES  = 
-OBJ  = main.o bin.o ram.o dynarec.o cache.o $(RES)
-LINKOBJ  = main.o bin.o ram.o dynarec.o cache.o $(RES)
+OBJ  = main.o bin.o ram.o dynarec.o cache.o compiler.o $(RES)
+LINKOBJ  = main.o bin.o ram.o dynarec.o cache.o compiler.o $(RES)
 LIBS =  -L"C:/Dev-Cpp/lib" -O0  
 INCS =  -I"C:/Dev-Cpp/include" 
 CXXINCS =  -I"C:/Dev-Cpp/lib/gcc/mingw32/3.4.2/include"  -I"C:/Dev-Cpp/include/c++/3.4.2/backward"  -I"C:/Dev-Cpp/include/c++/3.4.2/mingw32"  -I"C:/Dev-Cpp/include/c++/3.4.2"  -I"C:/Dev-Cpp/include" 
@@ -40,3 +40,6 @@ dynarec.o: dynarec.c
 
 cache.o: cache.c
 	$(CC) -c cache.c -o cache.o $(CFLAGS)
+
+compiler.o: compiler.c
+	$(CC) -c compiler.c -o compiler.o $(CFLAGS)

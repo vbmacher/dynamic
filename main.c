@@ -19,6 +19,7 @@
 #include "ram.h"
 #include "cache.h"
 #include "dynarec.h"
+#include "compiler.h"
 
 #include "main.h"
 
@@ -28,6 +29,7 @@ static struct option options[] =	{{"help", no_argument, NULL, 'h' },
                            {"summary", no_argument, NULL, 's'},
                            {"interpret", no_argument, NULL, 'i'},
                            {"compile", required_argument, NULL, 'c'},
+                           {"compile-only", no_argument, NULL, 'C'},
                            {0,0,0,0}};
 int cmd_options;
 char *code_filename;
@@ -45,7 +47,7 @@ int main(int argc, char *argv[])
   
   code_filename = NULL;
   while(1) {
-    opt = getopt_long(argc, argv, "hS::vsic:", options, &opt_index);
+    opt = getopt_long(argc, argv, "hS::vsic:C", options, &opt_index);
     
     if (opt == -1)
       break;
@@ -53,7 +55,7 @@ int main(int argc, char *argv[])
     switch(opt) {
       case 'h':
         printf("dynamic 0.21b\nDynamic Translator and emulator of RAM programs\n\n" \
-        "Usage: dynamic [options] path/to/ram/program\n\n" \
+        "Usage: dynamic [hS::vsic:C] path/to/ram/program\n\n" \
         "Options:\n" \
         "\t-h --help                       - This help screen\n" \
         "\t-S --save-code [[filename_base]]- Lets the dynamic to save generated\n" \
@@ -62,8 +64,9 @@ int main(int argc, char *argv[])
         "\t                                  results from the output tape).\n" \
         "\t-s --summary                    - Prints summary information while\n" \
         "\t                                  performing the translation.\n" \
-        "\t-i --interpret                  - Perform interpretation.\n\n" \
-        "\t-c --compile [source_file]      - Compile a source file into the output file.\n\n");
+        "\t-i --interpret                  - Perform interpretation.\n" \
+        "\t-c --compile [source_file]      - Compile a source file into the output file.\n" \
+        "\t-C --compile-only               - Do not perform emulation after compile.\n\n");
         return 0;
       case 'S':
         cmd_options |= CMD_SAVE_CODE;
@@ -83,21 +86,31 @@ int main(int argc, char *argv[])
         cmd_options |= CMD_COMPILE;
         input_filename = optarg;
         break;
+      case 'C':
+        cmd_options |= CMD_COMPILE_ONLY;
       default: opt = -1; break;
     }
     if (opt == -1)
       break;
   }
 
-  // chyba dalsi operand
+  /* first - compile */
+  if (cmd_options & CMD_COMPILE) {
+    printf("Compiling file '%s'...\n", input_filename);
+    if (Parse(input_filename)) {
+      printf("\nFix the errors and try again!\n");
+    } else
+      printf("\nCompile runned OK\n");
+    
+    if (cmd_options & CMD_COMPILE_ONLY)
+      return OK;
+  }
+
   if (optind >= argc) {
-    printf("Error: Missing RAM program\n\n(Type 'dynamic --help' for help)\n");
+    printf("Error: Missing RAM program file name\n\n(Type 'dynamic --help' for help)\n");
     return ERROR_MISSING_ARGS;
   }
 
-  /* first - compile */
-  if (cmd_options & CMD_COMPILE)
-    printf("Compiling file '%s'...\n", input_filename);
 
   /* load RAM program */
   if (cmd_options & CMD_SUMMARY)
