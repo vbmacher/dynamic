@@ -42,6 +42,6 @@ typedef unsigned long SET;
 #define COMPILER_OK     0
 #define COMPILER_ERROR  1
 
-int Parse(char *filename);
+int compile(const char *input, const char* output);
 
 #endif

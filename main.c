@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
         "\t-i --interpret                  - Perform interpretation.\n" \
         "\t-c --compile [source_file]      - Compile a source file into the output file.\n" \
         "\t-C --compile-only               - Do not perform emulation after compile.\n\n");
+//        "\t-p --parse-only                 - Do not compile, but parse only\n\n");
         return 0;
       case 'S':
         cmd_options |= CMD_SAVE_CODE;
@@ -94,23 +95,23 @@ int main(int argc, char *argv[])
       break;
   }
 
+  if (optind >= argc) {
+    printf("Error: Missing RAM program file name\n\n(Type 'dynamic --help' for help)\n");
+    return ERROR_MISSING_ARGS;
+  }
+
   /* first - compile */
   if (cmd_options & CMD_COMPILE) {
     printf("Compiling file '%s'...\n", input_filename);
-    if (Parse(input_filename)) {
+    if (compile(input_filename, argv[optind])) {
       printf("\nFix the errors and try again!\n");
+      return OK;
     } else
       printf("\nCompile runned OK\n");
     
     if (cmd_options & CMD_COMPILE_ONLY)
       return OK;
   }
-
-  if (optind >= argc) {
-    printf("Error: Missing RAM program file name\n\n(Type 'dynamic --help' for help)\n");
-    return ERROR_MISSING_ARGS;
-  }
-
 
   /* load RAM program */
   if (cmd_options & CMD_SUMMARY)
