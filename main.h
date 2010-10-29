@@ -19,6 +19,7 @@
 #define CMD_VERBOSE 4
 #define CMD_SUMMARY 8
 #define CMD_INTERPRET 16
+#define CMD_COMPILE 32
 
 extern int cmd_options;
 extern char *code_filename;

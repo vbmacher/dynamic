@@ -27,10 +27,11 @@ static struct option options[] =	{{"help", no_argument, NULL, 'h' },
                            {"verbose", no_argument, NULL, 'v'},
                            {"summary", no_argument, NULL, 's'},
                            {"interpret", no_argument, NULL, 'i'},
+                           {"compile", required_argument, NULL, 'c'},
                            {0,0,0,0}};
 int cmd_options;
 char *code_filename;
-
+char *input_filename;
 
 static unsigned char *program; // loaded program, corresponds with operating memory
 
@@ -44,24 +45,26 @@ int main(int argc, char *argv[])
   
   code_filename = NULL;
   while(1) {
-    opt = getopt_long(argc, argv, "hS::vsi", options, &opt_index);
+    opt = getopt_long(argc, argv, "hS::vsic:", options, &opt_index);
     
     if (opt == -1)
       break;
       
     switch(opt) {
       case 'h':
-        printf("dynamic 0.21b\n\tDynamic Translator and emulator of RAM programs\n\n" \
-"Usage:\n" \
-"\t-h --help                       - This help screen\n" \
-"\t-S --save-code [filename_base]  - Lets the dynamic to save generated\n" \
-"\t                                  code to file(s).\n" \
-"\t-v --verbose                    - Hides all output (prints only the\n" \
-"\t                                  results from the output tape).\n" \
-"\t-s --summary                    - Prints summary information while\n" \
-"\t                                  performing the translation.\n" \
-"\t-i --interpret                  - Perform interpretation.\n\n");
-        break;
+        printf("dynamic 0.21b\nDynamic Translator and emulator of RAM programs\n\n" \
+        "Usage: dynamic [options] path/to/ram/program\n\n" \
+        "Options:\n" \
+        "\t-h --help                       - This help screen\n" \
+        "\t-S --save-code [[filename_base]]- Lets the dynamic to save generated\n" \
+        "\t                                  code to file(s).\n" \
+        "\t-v --verbose                    - Hides all output (prints only the\n" \
+        "\t                                  results from the output tape).\n" \
+        "\t-s --summary                    - Prints summary information while\n" \
+        "\t                                  performing the translation.\n" \
+        "\t-i --interpret                  - Perform interpretation.\n\n" \
+        "\t-c --compile [source_file]      - Compile a source file into the output file.\n\n");
+        return 0;
       case 'S':
         cmd_options |= CMD_SAVE_CODE;
         if (optarg)
@@ -76,6 +79,10 @@ int main(int argc, char *argv[])
       case 'i':
         cmd_options |= CMD_INTERPRET;
         break;
+      case 'c':
+        cmd_options |= CMD_COMPILE;
+        input_filename = optarg;
+        break;
       default: opt = -1; break;
     }
     if (opt == -1)
@@ -84,9 +91,13 @@ int main(int argc, char *argv[])
 
   // chyba dalsi operand
   if (optind >= argc) {
-    printf("Usage: dynamic [options] path/to/ram/program\n\n(Type 'dynamic --help' for help)\n");
+    printf("Error: Missing RAM program\n\n(Type 'dynamic --help' for help)\n");
     return ERROR_MISSING_ARGS;
   }
+
+  /* first - compile */
+  if (cmd_options & CMD_COMPILE)
+    printf("Compiling file '%s'...\n", input_filename);
 
   /* load RAM program */
   if (cmd_options & CMD_SUMMARY)
