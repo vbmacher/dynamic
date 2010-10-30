@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
       
     switch(opt) {
       case 'h':
-        printf("dynamic 0.21b\nDynamic Translator and emulator of RAM programs\n\n" \
+        printf("dynamic 0.22b\nDynamic Translator and emulator of RAM programs\n\n" \
         "Usage: dynamic [hS::vsic:C] path/to/ram/program\n\n" \
         "Options:\n" \
         "\t-h --help                       - This help screen\n" \
@@ -67,7 +67,6 @@ int main(int argc, char *argv[])
         "\t-i --interpret                  - Perform interpretation.\n" \
         "\t-c --compile [source_file]      - Compile a source file into the output file.\n" \
         "\t-C --compile-only               - Do not perform emulation after compile.\n\n");
-//        "\t-p --parse-only                 - Do not compile, but parse only\n\n");
         return 0;
       case 'S':
         cmd_options |= CMD_SAVE_CODE;
