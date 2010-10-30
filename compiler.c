@@ -21,7 +21,14 @@ typedef struct {
   int address;
 } XLabel;
 
+typedef struct {
+  int ix;
+  int position;
+} SPass;
+
 static XLabel TID[317]; /* table of labels */
+static SPass LPASS[400]; /* table of labels usage generated in 1st pass, used in 2nd pass*/
+static int ixlpass = 0;
 
 static int lexval;  /* value for syntax analyzer */
 static int sym;     /* input symbol - for syntax analyzer */
@@ -65,10 +72,8 @@ int save_id(char *id, int address)
   
   ix = hash_index(id);
   while (TID[ix].id != NULL) {
-	  if (!strcmp(id,TID[ix].id)) {
-      TID[ix].address = address;
+	  if (!strcmp(id,TID[ix].id))
       return ix;
-    }
 	  ix = (ix + 17) % 317; /* 17 is a constant step, empirically k=sqrt(TIDmax) */
   }
   TID[ix].id = (char*)malloc(strlen(id) + 1);
@@ -111,7 +116,8 @@ static void get(void) {
 				  ident[i] = '\0';
 				  val = atoi(ident);
 				  sym = NUMBER;
-          lexval = ixtc++;
+          lexval = ixtc;
+          ixtc++;
           TC[lexval]=val;
           return;
         } else if(isalpha(c)) { // RESERVED WORD? or LABEL?
@@ -189,22 +195,25 @@ void Row(SET K) {
 
 // Label -> LABELTEXT COLON
 void Label(SET K) {
-  if (sym == LABELTEXT)
+  int ix = 0;
+  if (sym == LABELTEXT) {
+    ix = lexval;
     get();
-  else
+  } else
     error("Label text was expected!", COLON|K);
   
   if (sym == COLON)
     get();
   else
     error("Colon (':') was expected!",K);
-    
-  TID[lexval].address = address;
+  
+  TID[ix].address = address;
 }
 
 void Instruction(SET K) {
   int code;
   int add = 0;
+  int ix = 0;
 
   check("Unexpected symbol",F_Instruction|FO_Instruction|NUMBER|K);
   switch(sym) {
@@ -212,7 +221,7 @@ void Instruction(SET K) {
       get();
       
       fprintf(fout,"0\n");
-       address++; break;
+      address++; break;
     case READ: case STORE:
       code = get_code();
       
@@ -223,12 +232,13 @@ void Instruction(SET K) {
         get();
       }
       address++;
-      if (sym == NUMBER)
+      if (sym == NUMBER) {
+        ix = lexval;
         get();
-      else
+      } else
         error("Number was expected!",K);
-      
-      fprintf(fout, "%d %d\n", code+add,TC[lexval]);
+
+      fprintf(fout, "%d %d\n", code+add,TC[ix]);
       address++;
       break;
     case WRITE: case LOAD: case ADD: case SUB:
@@ -243,12 +253,13 @@ void Instruction(SET K) {
         get();
       }
       address++;
-      if (sym == NUMBER)
+      if (sym == NUMBER) {
+        ix = lexval;
         get();
-      else
+      } else
         error("Number was expected!",K);
       
-      fprintf(fout, "%d %d\n", code+add,TC[lexval]);        
+      fprintf(fout, "%d %d\n", code+add,TC[ix]);
       address++;
       break;
     case JMP: case JGTZ: case JZ:
@@ -256,12 +267,16 @@ void Instruction(SET K) {
       
       get();
       address++;
-      if (sym == LABELTEXT)
+      if (sym == LABELTEXT) {
+        ix = lexval;
         get();
-      else
+      } else
         error("Label text was expected!",K);
-        
-      fprintf(fout, "%d %d\n", code+add,TID[lexval].address);
+      
+      fprintf(fout, "%d ", code);
+      LPASS[ixlpass].ix = ix;
+      LPASS[ixlpass++].position = ftell(fout);
+      fprintf(fout, "      \n");
       address++;
       break;
     default:
@@ -271,6 +286,7 @@ void Instruction(SET K) {
 
 // public function
 int compile(const char *input, const char *output) {
+  int i;
   if ((fin = fopen(input,"rt")) == NULL) {
     printf("ERROR: Input file '%s' cannot be opened!\n", input);
     return;
@@ -279,10 +295,19 @@ int compile(const char *input, const char *output) {
     printf("ERROR: Output file '%s' cannot be opened!\n", output);
     return;
   }
+  memset(TID, 0, 317 * sizeof(XLabel));
+  memset(LPASS, 0, 400 * sizeof(SPass));
   status = COMPILER_OK;
+  
+  /* PASS 1 */
   get();
   Start(F_Start|END);
   
+  /* PASS 2 */
+  for (i = 0; i < ixlpass; i++) {
+    fseek(fout, LPASS[i].position, SEEK_SET);
+    fprintf(fout, "%d", TID[LPASS[i].ix].address);
+  }
   fclose(fout);
   fclose(fin);
   

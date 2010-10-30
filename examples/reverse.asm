@@ -1,17 +1,17 @@
-; input : X0 - string X ended by zero, X∈{1,2,3,....}*
+; input : X0 - string X ended by zero, X={1,2,3,....}*
 ; output: XR - reversed string X
 
 load=10
 store 2
 
 citaj:
-  read1
+  read 1
   load 1
   jz vypis
   store *2
   load 2
   add=1
-  store2
+  store 2
   jmp citaj
 vypis:
   load 2
