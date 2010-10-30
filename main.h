@@ -12,6 +12,7 @@
 
 #define ERROR_MISSING_ARGS 1
 #define ERROR_LOAD         2
+#define ERROR_COMPILE      3
 #define OK                 0
 
 #define CMD_SAVE_CODE     1

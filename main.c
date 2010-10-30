@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
     printf("Compiling file '%s'...\n", input_filename);
     if (compile(input_filename, argv[optind])) {
       printf("\nFix the errors and try again!\n");
-      return OK;
+      return ERROR_COMPILE;
     } else
       printf("\nCompile runned OK\n");
     

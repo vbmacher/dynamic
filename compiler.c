@@ -15,11 +15,20 @@ static int status;
 
 static int TC[512]; /* table of constants */
 static int ixtc=0;  /* index to free position in the constants table */
-static char *TID[317];     /* table of identifiers (labels) */
+
+typedef struct {
+  char *id;
+  int address;
+} XLabel;
+
+static XLabel TID[317]; /* table of labels */
 
 static int lexval;  /* value for syntax analyzer */
 static int sym;     /* input symbol - for syntax analyzer */
 static int row =1;  /* actual row for lexical analyzer */
+
+static int address = 0; /* actual absolute address in the code generation process */
+
 
 static void get(void);
 void Row();
@@ -50,18 +59,21 @@ int hash_index(char *text)
 }
 
 // save identifier to the table of identifiers
-int save_id(char *id)
+int save_id(char *id, int address)
 {
   int ix;
   
   ix = hash_index(id);
-  while (TID[ix] != NULL) {
-	  if (!strcmp(id,TID[ix]))
+  while (TID[ix].id != NULL) {
+	  if (!strcmp(id,TID[ix].id)) {
+      TID[ix].address = address;
       return ix;
+    }
 	  ix = (ix + 17) % 317; /* 17 is a constant step, empirically k=sqrt(TIDmax) */
   }
-  TID[ix] = (char*)malloc(strlen(id) + 1);
-  strcpy(TID[ix], id);
+  TID[ix].id = (char*)malloc(strlen(id) + 1);
+  strcpy(TID[ix].id, id);
+  TID[ix].address = address;
   return ix;
 }
 
@@ -126,7 +138,7 @@ static void get(void) {
           else if (!strcmp(ident, "JZ")) sym = JZ;
           else {
             sym = LABELTEXT;
-            lexval = save_id(ident);
+            lexval = save_id(ident,-1);
           }
           return;
         } else {
@@ -140,15 +152,36 @@ static void get(void) {
 
 /************** Syntax analysis **********************************************/
 
+int get_code() {
+  switch(sym) {
+    case HALT: return C_HALT;
+    case READ: return C_READ;
+    case WRITE: return C_WRITE;
+    case LOAD: return C_LOAD;
+    case STORE: return C_STORE;
+    case ADD: return C_ADD;
+    case SUB: return C_SUB;
+    case MUL: return C_MUL;
+    case DIV: return C_DIV;
+    case JMP: return C_JMP;
+    case JGTZ: return C_JGTZ;
+    case JZ: return C_JZ;
+    default: return -1;
+  }
+}
+
+
 // Start -> Row [Start];
 void Start(SET K) {
   Row(F_Start|K);
+  check("Unexpected symbol",F_Start|K);
   if (sym & F_Start)
     Start(F_Row|K);
 }
 
 // Row -> [Label] Instruction
 void Row(SET K) {
+  check("Unexpected symbol",F_Label|F_Instruction|K);
   if (sym & F_Label)
     Label(F_Instruction|K);
   Instruction(K);
@@ -165,37 +198,71 @@ void Label(SET K) {
     get();
   else
     error("Colon (':') was expected!",K);
+    
+  TID[lexval].address = address;
 }
 
 void Instruction(SET K) {
-  check("Expected somewhat else!",F_Instruction|FO_Instruction|NUMBER|K);
+  int code;
+  int add = 0;
+
+  check("Unexpected symbol",F_Instruction|FO_Instruction|NUMBER|K);
   switch(sym) {
     case HALT:
-      get(); break;
-    case READ: case STORE:
       get();
-      if (sym == ASTERISK)
+      
+      fprintf(fout,"0\n");
+       address++; break;
+    case READ: case STORE:
+      code = get_code();
+      
+      get();
+      check("Unexpected symbol", ASTERISK|NUMBER|K);
+      if (sym == ASTERISK) {
+        add = 1;
         get();
+      }
+      address++;
       if (sym == NUMBER)
         get();
       else
         error("Number was expected!",K);
+      
+      fprintf(fout, "%d %d\n", code+add,TC[lexval]);
+      address++;
       break;
     case WRITE: case LOAD: case ADD: case SUB:
     case MUL: case DIV:
+      code = get_code();
+      
       get();
-      if (sym & (ASTERISK|EQUAL))
+      check("Unexpected symbol", ASTERISK|EQUAL|NUMBER|K);
+      if (sym & (ASTERISK|EQUAL)) {
+        if (sym == ASTERISK) add = 1;
+        else add = -1;
         get();
+      }
+      address++;
       if (sym == NUMBER)
         get();
       else
         error("Number was expected!",K);
+      
+      fprintf(fout, "%d %d\n", code+add,TC[lexval]);        
+      address++;
       break;
     case JMP: case JGTZ: case JZ:
+      code = get_code();
+      
+      get();
+      address++;
       if (sym == LABELTEXT)
         get();
       else
         error("Label text was expected!",K);
+        
+      fprintf(fout, "%d %d\n", code+add,TID[lexval].address);
+      address++;
       break;
     default:
       error("Unknown instruction!",F_Instruction|FO_Instruction|NUMBER|K);
@@ -215,6 +282,9 @@ int compile(const char *input, const char *output) {
   status = COMPILER_OK;
   get();
   Start(F_Start|END);
+  
+  fclose(fout);
+  fclose(fin);
   
   return status;
 }
