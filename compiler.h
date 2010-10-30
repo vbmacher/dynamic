@@ -37,6 +37,13 @@
 #define F_Row         (F_Label|F_Instruction)
 #define F_Start       F_Row
 
+/* FOLLOW sets */
+
+#define FO_Start       END
+#define FO_Row         (F_Start|FO_Start)
+#define FO_Label       F_Instruction
+#define FO_Instruction FO_Row
+
 typedef unsigned long SET;
 
 #define COMPILER_OK     0

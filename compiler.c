@@ -111,51 +111,38 @@ void get(void) {
 /************** Syntax analysis **********************************************/
 
 // Start -> Row [Start];
-void Start() {
-  Row();
+void Start(SET K) {
+  Row(F_Start|K);
   if (sym & F_Start)
-    Start();
+    Start(F_Row|K);
 }
 
 // Row -> [Label] Instruction
-void Row() {
+void Row(SET K) {
   if (sym & F_Label)
-    Label();
-  Instruction();
+    Label(F_Instruction|K);
+  Instruction(K);
 }
 
 // Label -> LABELTEXT COLON
-void Label() {
+void Label(SET K) {
   if (sym == LABELTEXT)
     get();
   else {
-    printf("ERROR: Label text was expected!\n");
+    error("Label text was expected!", COLON|K);
     status = COMPILER_ERROR;
   }
   
   if (sym == COLON)
     get();
   else {
-    printf("ERROR: Colon (':') was expected!\n");
+    error("Colon (':') was expected!",K);
     status = COMPILER_ERROR;
   }
 }
 
-/*
-Instruction -> HALT                            | 
-               READ  [ASTERISK]         Number |
-               WRITE [ASTERISK | EQUAL] Number |
-               LOAD  [ASTERISK | EQUAL] Number |
-               STORE [ASTERISK]         Number |
-               ADD   [ASTERISK | EQUAL] Number |
-               SUB   [ASTERISK | EQUAL] Number |
-               MUL   [ASTERISK | EQUAL] Number |
-               DIV   [ASTERISK | EQUAL] Number |
-               JMP  LABELTEXT                  |
-               JGTZ LABELTEXT                  |
-               JZ   LABELTEXT
-*/
-void Instruction() {
+void Instruction(SET K) {
+  check("Expected somewhat else!",F_Instruction|FO_Instruction|NUMBER|K);
   if (sym == HALT) {
     get();
   } else if (sym & (READ|STORE)) {
@@ -167,7 +154,7 @@ void Instruction() {
     if (sym == NUMBER)
       get();
     else {
-      printf("ERROR: Number was expected!\n");
+      error("Number was expected!",K);
       status = COMPILER_ERROR;
     }
   } else if (sym & (WRITE|LOAD|ADD|SUB|MUL|DIV)) {
@@ -179,30 +166,31 @@ void Instruction() {
     if (sym == NUMBER)
       get();
     else {
-      printf("ERROR: Number was expected!\n");
+      error("Number was expected!",K);
       status = COMPILER_ERROR;
     }
   } else if (sym & (JMP|JGTZ|JZ)) {
     if (sym == LABELTEXT)
       get();
     else {
-      printf("ERROR: Label text was expected!\n");
+      error("Label text was expected!",K);
       status = COMPILER_ERROR;
     }
   } else {
-    printf("ERROR: Unknown instruction!\n");
+    error("Unknown instruction!",F_Instruction|FO_Instruction|NUMBER|K);
     status = COMPILER_ERROR;
   }
 }
 
 // public function
-int Parse(char *filename) {
-  if ((fin = fopen(filename,"rt")) == NULL) {
-    printf("ERROR: Input file '%s' cannot be opened!\n", filename);
+int compile(const char *input, const char *output) {
+  if ((fin = fopen(input,"rt")) == NULL) {
+    printf("ERROR: Input file '%s' cannot be opened!\n", input);
     return;
   }
   status = COMPILER_OK;
   get();
+  Start(F_Start|END);
   
   return status;
 }
