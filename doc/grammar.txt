@@ -1,0 +1,56 @@
+Tokens:
+=======
+They are not case sensitive.
+
+TEXT      -> [^\n]*
+LABELTEXT -> [a-zA-Z][a-zA-Z0-9]*
+NUMBER    -> [0-9]+
+HALT      -> "HALT"
+READ      -> "READ"
+WRITE     -> "WRITE"
+LOAD      -> "LOAD"
+STORE     -> "STORE"
+ADD       -> "ADD"
+SUB       -> "SUB"
+MUL       -> "MUL"
+DIV       -> "DIV"
+JMP       -> "JMP"
+JGTZ      -> "JGTZ"
+JZ        -> "JZ"
+ASTERISK  -> "*"
+EQUAL     -> "="
+COLON     -> ":"
+COMMENT   -> ";"[^\n]*
+
+LL(1) grammar:
+==============
+
+Start       -> (Row|COMMENT) [Start];
+
+Row         -> [Label] Instruction
+
+Label       -> LABELTEXT COLON
+
+Instruction -> HALT                            | 
+               READ  [ASTERISK]         Number |
+               WRITE [ASTERISK | EQUAL] Number |
+               LOAD  [ASTERISK | EQUAL] Number |
+               STORE [ASTERISK]         Number |
+               ADD   [ASTERISK | EQUAL] Number |
+               SUB   [ASTERISK | EQUAL] Number |
+               MUL   [ASTERISK | EQUAL] Number |
+               DIV   [ASTERISK | EQUAL] Number |
+               JMP  LABELTEXT                  |
+               JGTZ LABELTEXT                  |
+               JZ   LABELTEXT
+
+
+FIRST(Instruction) = {HALT, READ, WRITE, LOAD, STORE, ADD, SUB, MUL, DIV, JMP, JGTZ, JZ}
+FIRST(Label)       = {LABELTEXT}
+FIRST(Row)         = {LABELTEXT,HALT,READ,WRITE,LOAD,STORE,ADD,SUB,MUL,DIV,JMP,JGTZ,JZ}
+FIRST(Start)       = {LABELTEXT,HALT,READ,WRITE,LOAD,STORE,ADD,SUB,MUL,DIV,JMP,JGTZ,JZ}
+
+FOLLOW(Start)       = {END}
+FOLLOW(Row)         = FIRST(Start) U FOLLOW(Start)
+FOLLOW(Label)       = FIRST(Instruction)
+FOLLOW(Instruction) = FOLLOW(Row)
