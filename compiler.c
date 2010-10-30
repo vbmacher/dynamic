@@ -10,36 +10,63 @@
 #include "compiler.h"
 
 static FILE *fin;
+static FILE *fout;
 static int status;
 
-int TC[512]; /* table of constants */
-int ixtc=0;  /* index to free position in the constants table */
+static int TC[512]; /* table of constants */
+static int ixtc=0;  /* index to free position in the constants table */
+static char *TID[317];     /* table of identifiers (labels) */
 
-int lexval;  /* value for syntax analyzer */
-int sym;     /* input symbol - for syntax analyzer */
+static int lexval;  /* value for syntax analyzer */
+static int sym;     /* input symbol - for syntax analyzer */
+static int row =1;  /* actual row for lexical analyzer */
 
-void get(void);
+static void get(void);
 void Row();
 void Instruction();
 void Label();
 void Start();
 
-
-void error(char *s, SET K){
-  printf("ERROR: %s\n",s); /* error message */
+static void error(char *s, SET K){
+  printf("ERROR(%d): %s\n",row,s); /* error message */
   status = COMPILER_ERROR;
   while(!(sym & K))
     get(); /* jump over non-key symbols */
 }
 
-// this should be called before any branching (if, switch, for, while)
-void check(char *s, SET K){
+// this should be called before any branching
+static void check(char *s, SET K){
   if(!(sym & K))
     error(s,K);
 }
 
+// compute hash from a text
+int hash_index(char *text)
+{
+  int i,h=0;
+  for (i=0; text[i] != '\0'; i++)
+    h = (h * 36 + text[i]) % 317;
+  return h;
+}
+
+// save identifier to the table of identifiers
+int save_id(char *id)
+{
+  int ix;
+  
+  ix = hash_index(id);
+  while (TID[ix] != NULL) {
+	  if (!strcmp(id,TID[ix]))
+      return ix;
+	  ix = (ix + 17) % 317; /* 17 is a constant step, empirically k=sqrt(TIDmax) */
+  }
+  TID[ix] = (char*)malloc(strlen(id) + 1);
+  strcpy(TID[ix], id);
+  return ix;
+}
+
 // Lexical analyzer
-void get(void) {
+static void get(void) {
   int c,i;
   int val;
   char ident[128]; /* identifier name */
@@ -48,11 +75,13 @@ void get(void) {
     c = fgetc(fin);
     switch(c) {
       case ';': // comment?
-        do { c = fgetc(fin); } while (c != '\n');
+        do { c = fgetc(fin); }
+        while ((c != '\n') && (c != EOF));
+        ungetc(c,fin);
         break;
       case ' ' : break;
       case '\t': break;
-      case '\n': break;
+      case '\n': row++; break;
       case EOF : sym = END; return;
       case '*' : sym = ASTERISK; return;
       case ':' : sym = COLON; return;
@@ -97,6 +126,7 @@ void get(void) {
           else if (!strcmp(ident, "JZ")) sym = JZ;
           else {
             sym = LABELTEXT;
+            lexval = save_id(ident);
           }
           return;
         } else {
@@ -128,57 +158,47 @@ void Row(SET K) {
 void Label(SET K) {
   if (sym == LABELTEXT)
     get();
-  else {
+  else
     error("Label text was expected!", COLON|K);
-    status = COMPILER_ERROR;
-  }
   
   if (sym == COLON)
     get();
-  else {
+  else
     error("Colon (':') was expected!",K);
-    status = COMPILER_ERROR;
-  }
 }
 
 void Instruction(SET K) {
   check("Expected somewhat else!",F_Instruction|FO_Instruction|NUMBER|K);
-  if (sym == HALT) {
-    get();
-  } else if (sym & (READ|STORE)) {
-    get();
-    
-    if (sym == ASTERISK)
+  switch(sym) {
+    case HALT:
+      get(); break;
+    case READ: case STORE:
       get();
-    
-    if (sym == NUMBER)
+      if (sym == ASTERISK)
+        get();
+      if (sym == NUMBER)
+        get();
+      else
+        error("Number was expected!",K);
+      break;
+    case WRITE: case LOAD: case ADD: case SUB:
+    case MUL: case DIV:
       get();
-    else {
-      error("Number was expected!",K);
-      status = COMPILER_ERROR;
-    }
-  } else if (sym & (WRITE|LOAD|ADD|SUB|MUL|DIV)) {
-    get();
-    
-    if (sym & (ASTERISK|EQUAL))
-      get();
-    
-    if (sym == NUMBER)
-      get();
-    else {
-      error("Number was expected!",K);
-      status = COMPILER_ERROR;
-    }
-  } else if (sym & (JMP|JGTZ|JZ)) {
-    if (sym == LABELTEXT)
-      get();
-    else {
-      error("Label text was expected!",K);
-      status = COMPILER_ERROR;
-    }
-  } else {
-    error("Unknown instruction!",F_Instruction|FO_Instruction|NUMBER|K);
-    status = COMPILER_ERROR;
+      if (sym & (ASTERISK|EQUAL))
+        get();
+      if (sym == NUMBER)
+        get();
+      else
+        error("Number was expected!",K);
+      break;
+    case JMP: case JGTZ: case JZ:
+      if (sym == LABELTEXT)
+        get();
+      else
+        error("Label text was expected!",K);
+      break;
+    default:
+      error("Unknown instruction!",F_Instruction|FO_Instruction|NUMBER|K);
   }
 }
 
@@ -186,6 +206,10 @@ void Instruction(SET K) {
 int compile(const char *input, const char *output) {
   if ((fin = fopen(input,"rt")) == NULL) {
     printf("ERROR: Input file '%s' cannot be opened!\n", input);
+    return;
+  }
+  if ((fout = fopen(output,"wt")) == NULL) {
+    printf("ERROR: Output file '%s' cannot be opened!\n", output);
     return;
   }
   status = COMPILER_OK;
