@@ -19,11 +19,11 @@
 typedef struct {
   unsigned int pc;            /* program counter */
   unsigned int r[100];        /* registers */
-  char *input;       /* input tape */
+  char *input;                /* input tape */
   char output[RAM_OUTPUT_SIZE];  /* output tape, max. 100 chars */
-  int p_input;       /* pointer to the next cell within the input tape */
-  int p_output;      /* pointer to the next cell within the output tape */
-  int state;        /* state of the RAM machine, used only in dyntran */
+  int p_input;              /* pointer to the next cell within the input tape */
+  int p_output;            /* pointer to the next cell within the output tape */
+  int state;                /* state of the RAM machine, used only in dyntran */
 } RAM_env;
 
 extern RAM_env ram_env;

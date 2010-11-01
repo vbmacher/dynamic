@@ -30,6 +30,7 @@ static struct option options[] =	{{"help", no_argument, NULL, 'h' },
                            {"interpret", no_argument, NULL, 'i'},
                            {"compile", required_argument, NULL, 'c'},
                            {"compile-only", no_argument, NULL, 'C'},
+                           {"log-time",optional_argument,NULL,'l'},
                            {0,0,0,0}};
 int cmd_options;
 char *code_filename;
@@ -41,13 +42,17 @@ int main(int argc, char *argv[])
 {
   int status;
   clock_t start, end;
+  double overall_time = 0;
+  int log_iter = -1; // log time iteration
+  int log_counter = 0;
+  
   BASIC_BLOCK *tmp;
   char input_str[INPUT_CHARS];
   int opt_index, opt;
   
   code_filename = NULL;
   while(1) {
-    opt = getopt_long(argc, argv, "hS::vsic:C", options, &opt_index);
+    opt = getopt_long(argc, argv, "hS::vsl::ic:C", options, &opt_index);
     
     if (opt == -1)
       break;
@@ -55,18 +60,20 @@ int main(int argc, char *argv[])
     switch(opt) {
       case 'h':
         printf("dynamic 0.22b\nDynamic Translator and emulator of RAM programs\n\n" \
-        "Usage: dynamic [hS::vsic:C] path/to/ram/program\n\n" \
-        "Options:\n" \
-        "\t-h --help                       - This help screen\n" \
-        "\t-S --save-code [[filename_base]]- Lets the dynamic to save generated\n" \
-        "\t                                  code to file(s).\n" \
-        "\t-v --verbose                    - Hides all output (prints only the\n" \
-        "\t                                  results from the output tape).\n" \
-        "\t-s --summary                    - Prints summary information while\n" \
-        "\t                                  performing the translation.\n" \
-        "\t-i --interpret                  - Perform interpretation.\n" \
-        "\t-c --compile [source_file]      - Compile a source file into the output file.\n" \
-        "\t-C --compile-only               - Do not perform emulation after compile.\n\n");
+"Usage: dynamic [hS::vsl::ic:C] path/to/ram/program\n\n" \
+"Options:\n" \
+"\t-h --help                       - This help screen\n" \
+"\t-S --save-code [[filename_base]]- Lets the dynamic to save generated\n" \
+"\t                                  code to file(s).\n" \
+"\t-v --verbose                    - Hides all output (prints only the\n" \
+"\t                                  results from the output tape).\n" \
+"\t-s --summary                    - Prints summary information while\n" \
+"\t                                  performing the translation.\n" \
+"\t-l --log-time [[n]]             - Log time for every n-th iteration\n" \
+"\t                                  If n isn't given, log overall time only\n" \
+"\t-i --interpret                  - Perform interpretation.\n" \
+"\t-c --compile [source_file]      - Compile a source file into the output file.\n" \
+"\t-C --compile-only               - Do not perform emulation after compile.\n\n");
         return 0;
       case 'S':
         cmd_options |= CMD_SAVE_CODE;
@@ -78,6 +85,13 @@ int main(int argc, char *argv[])
         break;
       case 's':
         cmd_options |= CMD_SUMMARY;
+        break;
+      case 'l':
+        cmd_options |= CMD_LOGTIME;
+        if (optarg)
+          log_iter = atoi(optarg);
+        else
+          log_iter = -1;
         break;
       case 'i':
         cmd_options |= CMD_INTERPRET;
@@ -147,17 +161,30 @@ int main(int argc, char *argv[])
       printf("Interpreting...\n");
   
     start = clock();
-    while ((status = ram_interpret(program)) == RAM_OK)
-      ;
+    log_counter = 0;
+    overall_time = 0;
+    while ((status = ram_interpret(program)) == RAM_OK) {
+      if (log_counter < log_iter)
+        log_counter++;
+      else if (log_counter == log_iter) {
+        log_counter = 0;
+        end = clock();
+        printf("%lf\n", (double)((double)end-(double)start));
+        overall_time += (double)((double)end-(double)start);
+        start = end;
+      }
+    }
     end = clock();
+    overall_time += (double)((double)end-(double)start);
 
     if (!(cmd_options & CMD_VERBOSE))
       printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", status,
-        ram_error(status), (double)((double)end-(double)start));
+        ram_error(status), overall_time);
 
     if (!(cmd_options & CMD_VERBOSE))
       printf("\nOutput tape:\n\t");
     ram_output();
+    printf("\n");
   
     char *input = ram_env.input;
     ram_init(INPUT_CHARS);
@@ -169,6 +196,8 @@ int main(int argc, char *argv[])
     printf("Emulating using dynamic translation...\n");
 
   start = clock();
+  log_counter = 0;
+  overall_time = 0;
   do {    
     tmp = cache_get_block(ram_env.pc);
     if (tmp == NULL) {
@@ -191,12 +220,23 @@ int main(int argc, char *argv[])
       //  printf("\tInterpreting (PC=%d)...\n", ram_env.pc);
       ram_env.state = ram_interpret(program);
     }
+
+    if (log_counter < log_iter)
+      log_counter++;
+    else if (log_counter == log_iter) {
+      log_counter = 0;
+      end = clock();
+      printf("%lf\n", (double)((double)end-(double)start));
+      overall_time += (double)((double)end-(double)start);
+      start = end;
+    }
   } while ((ram_env.state == RAM_OK) && (ram_env.pc < ram_size));
   end = clock();
+  overall_time += (double)((double)end-(double)start);
   
   if (!(cmd_options & CMD_VERBOSE))
     printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", ram_env.state,
-      ram_error(ram_env.state), (double)((double)end-(double)start));
+      ram_error(ram_env.state), overall_time);
   
   if (!(cmd_options & CMD_VERBOSE))
     printf("\nOutput tape:\n\t");

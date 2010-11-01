@@ -119,61 +119,61 @@ int ram_interpret(const char *program) {
       ram_env.output[ram_env.p_output++] = ram_env.r[ram_env.r[program[ram_env.pc++]]];
       break;
     case 6: /* LOAD =i */
-      ram_env.r[0] = program[ram_env.pc++]; break;
+      ram_env.r[0] = (unsigned char)program[ram_env.pc++]; break;
     case 7: /* LOAD i */ 
-      ram_env.r[0] = ram_env.r[program[ram_env.pc++]]; break;
+      ram_env.r[0] = ram_env.r[(unsigned char)program[ram_env.pc++]]; break;
     case 8: /* LOAD *i */
-      ram_env.r[0] = ram_env.r[ram_env.r[program[ram_env.pc++]]]; break;
+      ram_env.r[0] = ram_env.r[ram_env.r[(unsigned char)program[ram_env.pc++]]]; break;
     case 9: /* STORE i */
-      ram_env.r[program[ram_env.pc++]] = ram_env.r[0]; break;
+      ram_env.r[(unsigned char)program[ram_env.pc++]] = ram_env.r[0]; break;
     case 10: /* STORE *i */
-      ram_env.r[ram_env.r[program[ram_env.pc++]]] = ram_env.r[0]; break;
+      ram_env.r[ram_env.r[(unsigned char)program[ram_env.pc++]]] = ram_env.r[0]; break;
     case 11: /* ADD =i */
-      ram_env.r[0] += program[ram_env.pc++]; break;
+      ram_env.r[0] += (unsigned char)program[ram_env.pc++]; break;
     case 12: /* ADD i */
-      ram_env.r[0] += ram_env.r[program[ram_env.pc++]]; break;
+      ram_env.r[0] += ram_env.r[(unsigned char)program[ram_env.pc++]]; break;
     case 13: /* ADD *i */
-      ram_env.r[0] += ram_env.r[ram_env.r[program[ram_env.pc++]]]; break;
+      ram_env.r[0] += ram_env.r[ram_env.r[(unsigned char)program[ram_env.pc++]]]; break;
     case 14: /* SUB =i */
-      ram_env.r[0] -= program[ram_env.pc++]; break;
+      ram_env.r[0] -= (unsigned char)program[ram_env.pc++]; break;
     case 15: /* SUB i */
-      ram_env.r[0] -= ram_env.r[program[ram_env.pc++]]; break;
+      ram_env.r[0] -= ram_env.r[(unsigned char)program[ram_env.pc++]]; break;
     case 16: /* SUB *i */
-      ram_env.r[0] -= ram_env.r[ram_env.r[program[ram_env.pc++]]]; break;
+      ram_env.r[0] -= ram_env.r[ram_env.r[(unsigned char)program[ram_env.pc++]]]; break;
     case 17: /* MUL =i */
-      ram_env.r[0] *= program[ram_env.pc++]; break;
+      ram_env.r[0] *= (unsigned char)program[ram_env.pc++]; break;
     case 18: /* MUL i */
-      ram_env.r[0] *= ram_env.r[program[ram_env.pc++]]; break;
+      ram_env.r[0] *= ram_env.r[(unsigned char)program[ram_env.pc++]]; break;
     case 19: /* MUL *i */
-      ram_env.r[0] *= ram_env.r[ram_env.r[program[ram_env.pc++]]]; break;
+      ram_env.r[0] *= ram_env.r[ram_env.r[(unsigned char)program[ram_env.pc++]]]; break;
     case 20: /* DIV =i */
-      t = program[ram_env.pc++];
+      t = (unsigned char)program[ram_env.pc++];
       if (!t) {
         printf("Error: division by zero.\n");
         return RAM_DIVISION_BY_ZERO;
       }
       ram_env.r[0] /= t; break;    
     case 21: /* DIV i */
-      t = ram_env.r[program[ram_env.pc++]];
+      t = ram_env.r[(unsigned char)program[ram_env.pc++]];
       if (!t) {
         printf("Error: division by zero.\n");
         return RAM_DIVISION_BY_ZERO;
       }
       ram_env.r[0] /= t; break;    
     case 22: /* DIV *i */
-      t = ram_env.r[ram_env.r[program[ram_env.pc++]]];
+      t = ram_env.r[ram_env.r[(unsigned char)program[ram_env.pc++]]];
       if (!t) {
         printf("Error: division by zero.\n");
         return RAM_DIVISION_BY_ZERO;
       }
       ram_env.r[0] /= t; break;
     case 23: /* JMP i */
-      ram_env.pc = program[ram_env.pc]; break;
+      ram_env.pc = (unsigned char)program[ram_env.pc]; break;
     case 24: /* JGTZ i */
-      ram_env.pc = (ram_env.r[0] > 0) ? program[ram_env.pc] : ram_env.pc+1;
+      ram_env.pc = ((unsigned int)ram_env.r[0] > 0) ? (unsigned char)program[ram_env.pc] : ram_env.pc+1;
       break;
     case 25: /* JZ i */
-      ram_env.pc = (ram_env.r[0] == 0) ? program[ram_env.pc] : ram_env.pc+1;
+      ram_env.pc = (ram_env.r[0] == 0) ? (unsigned char)program[ram_env.pc] : ram_env.pc+1;
       break;
     default:
       printf("Error: unknown insruction.\n");

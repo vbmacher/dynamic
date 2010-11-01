@@ -15,13 +15,14 @@
 #define ERROR_COMPILE      3
 #define OK                 0
 
-#define CMD_SAVE_CODE     1
-#define CMD_TEMPLATE      2
-#define CMD_VERBOSE       4
-#define CMD_SUMMARY       8
-#define CMD_INTERPRET    16
-#define CMD_COMPILE      32
-#define CMD_COMPILE_ONLY 64
+#define CMD_SAVE_CODE      1
+#define CMD_TEMPLATE       2
+#define CMD_VERBOSE        4
+#define CMD_SUMMARY        8
+#define CMD_INTERPRET     16
+#define CMD_COMPILE       32
+#define CMD_COMPILE_ONLY  64
+#define CMD_LOGTIME      128
 
 extern int cmd_options;
 extern char *code_filename;
