@@ -5,7 +5,6 @@ This project is a dynamic translator and emulator of RAM (Random Access Machine)
 to 'test' my abilities to do a dynamic translator. I was not plannig to continue the project, but my interest
 has been increased so now you may expect some inovations, additions and new techniques testing.
 
-TODO plans you find in the file called same way.
 If you have any questions, just ask me.
 
 License
