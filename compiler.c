@@ -13,7 +13,7 @@ static FILE *fin;
 static FILE *fout;
 static int status;
 
-static int TC[512]; /* table of constants */
+static int *TC; /* table of constants */
 static int ixtc=0;  /* index to free position in the constants table */
 
 typedef struct {
@@ -295,6 +295,7 @@ int compile(const char *input, const char *output) {
     printf("ERROR: Output file '%s' cannot be opened!\n", output);
     return;
   }
+  TC = (int *)malloc(65536 * sizeof(int));
   memset(TID, 0, 317 * sizeof(XLabel));
   memset(LPASS, 0, 400 * sizeof(SPass));
   status = COMPILER_OK;
@@ -308,6 +309,8 @@ int compile(const char *input, const char *output) {
     fseek(fout, LPASS[i].position, SEEK_SET);
     fprintf(fout, "%d", TID[LPASS[i].ix].address);
   }
+  
+  free(TC);
   fclose(fout);
   fclose(fin);
   
