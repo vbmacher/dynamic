@@ -74,7 +74,7 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
   xcode = *p++;
   micro_size = gen_codes[xcode].size;
 
-  while (micro_size && (a_size < cache_size) && ((unsigned int)p < overrun)) {
+  while (micro_size && ((a_size+micro_size) < cache_size) && ((unsigned int)p < overrun)) {
     memcpy(target, gen_codes[xcode].code, micro_size);
 
     switch (xcode) {
