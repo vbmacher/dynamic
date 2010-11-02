@@ -116,6 +116,13 @@ static void get(void) {
 				  ident[i] = '\0';
 				  val = atoi(ident);
 				  sym = NUMBER;
+				  
+				  // find constant in TC
+				  for (i = 0; i < ixtc; i++)
+				    if (TC[i] == val) {
+              lexval = i;
+              return;
+            }
           lexval = ixtc;
           ixtc++;
           TC[lexval]=val;
@@ -295,7 +302,7 @@ int compile(const char *input, const char *output) {
     printf("ERROR: Output file '%s' cannot be opened!\n", output);
     return;
   }
-  TC = (int *)malloc(65536 * sizeof(int));
+  TC = (int *)malloc(4096 * sizeof(int));
   memset(TID, 0, 317 * sizeof(XLabel));
   memset(LPASS, 0, 400 * sizeof(SPass));
   status = COMPILER_OK;
