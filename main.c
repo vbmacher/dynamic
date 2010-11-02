@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
   if (cmd_options & CMD_SUMMARY)
     printf("Initializing...\n");
   ram_init(INPUT_CHARS);
-  cache_init();
+  cache_init(ram_size);
   
   if (!(cmd_options & CMD_VERBOSE))
     printf("Enter input tape (max. %d chars):", INPUT_CHARS);
@@ -198,28 +198,18 @@ int main(int argc, char *argv[])
   start = clock();
   log_counter = 0;
   overall_time = 0;
-  do {    
+  do {
     tmp = cache_get_block(ram_env.pc);
     if (tmp == NULL) {
-//      if (cmd_options & CMD_SUMMARY)
-  //      printf("\tTranslating (PC=%d)...\n", ram_env.pc);
       if ((tmp = cache_create_block(ram_env.pc)) == NULL) {
-    //    if (cmd_options & CMD_SUMMARY)
-      //    printf("\t\tFlushing cache...\n");
         cache_flush();
         tmp = cache_create_block(ram_env.pc);
       }
       dyn_translate(tmp, program);
-    } else if (tmp->size > 0) {
-//      if (cmd_options & CMD_SUMMARY)
-  //      printf("\tExecuting code (PC=%d)...\n", tmp->address);
+    } else if (tmp->size > 0)
       (*(void (*)())tmp->code)();
-      ram_env.pc += tmp->size;
-    } else {
-    //  if (cmd_options & CMD_SUMMARY)
-      //  printf("\tInterpreting (PC=%d)...\n", ram_env.pc);
+    else
       ram_env.state = ram_interpret(program);
-    }
 
     if (log_counter < log_iter)
       log_counter++;

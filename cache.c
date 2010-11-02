@@ -14,13 +14,16 @@
 static BASIC_BLOCK *cache;       /* Prekladova cache, to je zaklad. */
 static int freeBlock = 0; /* index dalsieho volneho bloku*/
 
+int cache_code_size;
+
 /**
  * Funkcia inicializuje prekladovu cache - vytvori pamat pre N blokov.
  */
-void cache_init() {
+void cache_init(int program_size) {
   cache = (BASIC_BLOCK *)malloc(CACHE_BLOCKS * sizeof(BASIC_BLOCK));
   cache_flush();
   freeBlock = 0;
+  cache_code_size = (program_size < CACHE_CODE_SIZE) ? CACHE_CODE_SIZE : program_size;
 }
 
 /**
@@ -65,9 +68,10 @@ BASIC_BLOCK *cache_create_block(int address) {
   if (cmd_options & CMD_SUMMARY)
     printf("\t\tCreating block (freeBlock = %d)\n", freeBlock);
   cache[freeBlock].address = address;
-  cache[freeBlock++].code = (unsigned char *)calloc(1, CACHE_CODE_SIZE);
+  cache[freeBlock++].code = (unsigned char *)calloc(1, cache_code_size);
   if (cmd_options & CMD_SUMMARY)
     printf("\t\tBlock: code=%x, beg.=%x, PC addr.=%x, size=%d\n", 
-      cache[freeBlock-1].code,&(cache[freeBlock-1]), cache[freeBlock-1].address, CACHE_CODE_SIZE);
+      cache[freeBlock-1].code,&(cache[freeBlock-1]), cache[freeBlock-1].address,
+       cache_code_size);
   return &cache[freeBlock-1];
 }

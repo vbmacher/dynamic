@@ -176,7 +176,7 @@ int ram_interpret(const char *program) {
       ram_env.pc = (ram_env.r[0] == 0) ? (unsigned char)program[ram_env.pc] : ram_env.pc+1;
       break;
     default:
-      printf("Error: unknown insruction.\n");
+      printf("Error: unknown insruction (%d).\n",c);
       return RAM_UNKNOWN_INSTRUCTION;
   }
   return RAM_OK;
