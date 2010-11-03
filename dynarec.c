@@ -1,7 +1,7 @@
 /**
  * dynarec.c
  *
- * (c) Copyright 2010, P. Jakubèo
+ * (c) Copyright 2010, P. Jakubco <pjakubco@gmail.com>
  *
  */
 
@@ -14,13 +14,10 @@
 #include "main.h"
 #include "ram.h"
 
-char *names[] = {"HALT","READ i","READ *i","WRITE =i","WRITE i","WRITE *i",
-                 "LOAD =i","LOAD i","LOAD *i","STORE i","STORE *i","ADD =i",
-                 "ADD i","ADD *i","SUB =i","SUB i","SUB *i","MUL =i","MUL i",
-                 "MUL *i","DIV =i","DIV i","DIV *i","JMP i","JGTZ i","JZ i",NULL};
+static int rsize[] = {1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2};
 
-gen_code_struct gen_codes[] = {
-  { NULL, 0},
+static gen_code_struct icodes[] = {
+  { "\x81\x05\0\0\0\0\0\0\0\0\xC7\x05\0\0\0\0\0\0\0\0\x5D\xC3", 22},
   { "\xA1\0\0\0\0\x03\x05\0\0\0\0\x0F\xBE\0\xA3\0\0\0\0\xFF\x05\0\0\0\0", 25},
   { "\xA1\0\0\0\0\x03\x05\0\0\0\0\x0F\xBE\0\x8B\x15\0\0\0\0\x89\x04\x95\0\0\0\0\xFF\x05\0\0\0\0", 33},
   { "\xA1\0\0\0\0\x83\xF8\0\x7C\x0C\xC7\x05\0\0\0\0\0\0\0\0\xEB\x11\x05\0\0\0\0\xC7\0\0\0\0\0\xFF\x05\0\0\0\0", 39},
@@ -49,52 +46,58 @@ gen_code_struct gen_codes[] = {
 };
 
 /**
- * Tato funkcia vytvori spustatelnu funkciu pre dany blok. Je realizatorom
- * dynamickeho prekladaca. Kod preklada priamo bez predprogramovanych sablon.
+ * This function creates runnable function for given block. It is the realisator
+ * of the dynamic translator. The code is translated using predefined templates.
  *
- * @param block   - zakladny blok obsahujuci adresu cieloveho kodu
- * @param program - adresa povodneho neprelozeneho programu
+ * @param block   - basic block containing the address of target code
+ * @param program - original non-translated RAM program
  */
 void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
-  register int a_size = 3, micro_size=0;
-  unsigned char *p, xcode;
-  unsigned char *target;
-  unsigned int tmp,i,addr;
-  int instr_count = 0;
+  register unsigned int target_size = 3, isize=0;
+  unsigned char *ptr, *target, xcode;
+
+  unsigned int tmp,i,addr,tmp2,tmp3;
+  unsigned short icount = 0,tmp4;
   
-  unsigned int overrun = ram_size + (unsigned int)program;
-  unsigned int cache_size = cache_code_size-2;
+  unsigned int ptr_max = ram_size + (unsigned int)program;
+  unsigned int cache_size = cache_code_size-12; // the number of bytes of the procedure epilogue
   
   /* BEGINNING */
-  p = program + block->address;
+  ptr = program + block->address;
   target = (unsigned char *)block->code;
   
   *target++ = 0x55;   // "push %ebp"
   *target++ = 0x89;   // "mov %esp, %ebp"
   *target++ = 0xE5;
   
-  xcode = *p++;
-  micro_size = gen_codes[xcode].size;
+  xcode = *ptr++;
+  isize = icodes[xcode].size;
 
-  while (micro_size && ((a_size+micro_size) < cache_size) && ((unsigned int)p < overrun)) {
-    memcpy(target, gen_codes[xcode].code, micro_size);
+  // buggy can be: ptr <= ptr_max
+  while (isize && ((target_size+isize) < cache_size) && ((unsigned int)ptr <= ptr_max)) {
+    memcpy(target, icodes[xcode].code, isize);
+    icount += rsize[xcode]; // might be buggy
 
     switch (xcode) {
-     // case 0: // HALT i
+      case 0: // HALT
+        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.pc);
+        *(unsigned int *)(target+6) = icount;
+        *(unsigned int *)(target+12) = (unsigned int)(&ram_env.state);
+        *(unsigned int *)(target+16) = (int)RAM_HALT;
+        icount = 0;
+        break;
       case 1: // READ i
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_input);
         *(unsigned int *)(target+7) = (unsigned int)(&ram_env.input);
-        *(unsigned int *)(target+15) = (unsigned int)&ram_env.r[*p++];
+        *(unsigned int *)(target+15) = (unsigned int)&ram_env.r[*ptr++];
         *(unsigned int *)(target+21) = (unsigned int)&ram_env.p_input;
-        instr_count+=2;
         break;
       case 2: // READ *i 
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_input);
         *(unsigned int *)(target+7) = (unsigned int)(&ram_env.input);
-        *(unsigned int *)(target+16) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+16) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+23) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+29) = (unsigned int)(&ram_env.p_input);
-        instr_count+=2;
         break;
       case 3: // WRITE =i
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_output);
@@ -102,233 +105,277 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
         *(unsigned int *)(target+12) = (unsigned int)&ram_env.state;
         *(unsigned int *)(target+16) = (unsigned int)RAM_OUTPUT_FULL;
         *(unsigned int *)(target+23) = (unsigned int)&ram_env.output;
-        *(unsigned int *)(target+29) = (unsigned int)*p++;
+        *(unsigned int *)(target+29) = (unsigned int)*ptr++;
         *(unsigned int *)(target+35) = (unsigned int)&ram_env.p_output;
-        instr_count+=2;
         break;
       case 4: // WRITE i
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_output);
         *(target+7) = (unsigned char)(RAM_OUTPUT_SIZE);
         *(unsigned int *)(target+12) = (unsigned int)&ram_env.state;
         *(unsigned int *)(target+16) = (unsigned int)RAM_OUTPUT_FULL;
-        *(unsigned int *)(target+24) = (unsigned int)&ram_env.r[*p++];
+        *(unsigned int *)(target+24) = (unsigned int)&ram_env.r[*ptr++];
         *(unsigned int *)(target+29) = (unsigned int)&ram_env.output;
         *(unsigned int *)(target+37) = (unsigned int)&(ram_env.p_output);
-        instr_count+=2;
         break;
       case 5: // WRITE *i
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.p_output);
         *(target+7) = (unsigned char)(RAM_OUTPUT_SIZE);
         *(unsigned int *)(target+12) = (unsigned int)&ram_env.state;
         *(unsigned int *)(target+16) = (unsigned int)RAM_OUTPUT_FULL;
-        *(unsigned int *)(target+24) = (unsigned int)&ram_env.r[*p++];
+        *(unsigned int *)(target+24) = (unsigned int)&ram_env.r[*ptr++];
         *(unsigned int *)(target+31) = (unsigned int)&ram_env.r[0];
         *(unsigned int *)(target+36) = (unsigned int)&ram_env.output;
         *(unsigned int *)(target+44) = (unsigned int)&(ram_env.p_output);
-        instr_count+=2;
         break;
       case 6: // LOAD =i
         *(unsigned int *)(target+2) = (unsigned int)&ram_env.r[0];
-        *(unsigned int *)(target+6) = (unsigned int)*p++;
-        instr_count+=2;
+        *(unsigned int *)(target+6) = (unsigned int)*ptr++;
         break;
       case 7: // LOAD i
-        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+6) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 8: // LOAD *i
-        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+13) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 9: // STORE i
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[0]);
-        *(unsigned int *)(target+6) = (unsigned int)(&ram_env.r[*p++]);
-        instr_count+=2;
+        *(unsigned int *)(target+6) = (unsigned int)(&ram_env.r[*ptr++]);
         break;
       case 10: // STORE *i
         *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[0]);
-        *(unsigned int *)(target+7) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+7) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 11: // ADD =i
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[0]);
-        *(unsigned int *)(target+6) = (unsigned int)*p++;
-        instr_count+=2;
+        *(unsigned int *)(target+6) = (unsigned int)*ptr++;
         break;
       case 12: // ADD i
-        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 13: // ADD *i 
-        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 14: // SUB =i
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[0]);
-        *(unsigned int *)(target+6) = (unsigned int)*p++;
-        instr_count+=2;
+        *(unsigned int *)(target+6) = (unsigned int)*ptr++;
         break;
       case 15: // SUB i 
-        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 16: // SUB *i
-        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 17: // MUL =i
         *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[0]);
-        *(unsigned int *)(target+6) = (unsigned int)*p++;
+        *(unsigned int *)(target+6) = (unsigned int)*ptr++;
         *(unsigned int *)(target+11) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 18: // MUL i
-        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+7) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+12) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 19: // MUL *i
-        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+1) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+8) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+14) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+19) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 20: // DIV =i
-        *(unsigned int *)(target+1) = (unsigned int)*p++;
+        *(unsigned int *)(target+1) = (unsigned int)*ptr++;
         *(unsigned int *)(target+15) = (unsigned int)(&ram_env.state);
         *(unsigned int *)(target+19) = (unsigned int)RAM_DIVISION_BY_ZERO;
         *(unsigned int *)(target+26) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+34) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 21: // DIV i
-        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+16) = (unsigned int)(&ram_env.state);
         *(unsigned int *)(target+20) = (unsigned int)RAM_DIVISION_BY_ZERO;
         *(unsigned int *)(target+27) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+35) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 22: // DIV *i
-        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*p++]);
+        *(unsigned int *)(target+2) = (unsigned int)(&ram_env.r[*ptr++]);
         *(unsigned int *)(target+9) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+23) = (unsigned int)(&ram_env.state);
         *(unsigned int *)(target+27) = (unsigned int)RAM_DIVISION_BY_ZERO;
         *(unsigned int *)(target+34) = (unsigned int)(&ram_env.r[0]);
         *(unsigned int *)(target+42) = (unsigned int)(&ram_env.r[0]);
-        instr_count+=2;
         break;
       case 23: // JMP i
-        // if the jump lies inside this cache block, and its not forward
-        // reference, then it is possible to do it
-        tmp = *p++;
-        
-        if ((tmp >= block->address) && (tmp < (int)(p-program))) {
-          // do it
+        // if the jump lies inside this cache block, 
+        // then it is possible to do it. Considering forward references, too.
+        tmp = *ptr++;        
+        icount -= rsize[xcode];
+        if (tmp >= block->address) {
           *(unsigned int *)(target+2) = (unsigned int)(&ram_env.pc);
           *(unsigned int *)(target+6) = tmp;
-          
-          instr_count = 0;
+          icount = 0;
           // find address
-          addr = (unsigned int)block->code;
-          for (i = block->address; i < tmp; i+=2)
-            addr += gen_codes[program[i]].size;
+          if (tmp <= (ptr-program)) {
+            // from beginning
+            addr = (unsigned int)block->code;
+            i = block->address;
+          } else {
+            // from current position
+            addr = (unsigned int)target + icodes[xcode].size - 3;
+            i = ptr-program;
+          }          
+          tmp3 = icodes[xcode].size;
+          tmp2 = target_size+tmp3;
+          for (; (i < tmp) && (tmp2 < cache_size) && tmp3 && (i <= ptr_max); i+=rsize[program[i]]) {
+            tmp3 = icodes[program[i]].size;
+            addr += tmp3;
+            tmp2 += tmp3;
+          }
+          
+          // check
+          if (i != tmp) {
+            // address find failed
+            ptr -= rsize[xcode];
+            isize = 0;
+            break;
+          }
+          // finally got it...
           *(unsigned int *)(target+11) = addr + 3;
         } else {
-          p-=2;
-          micro_size = 0;
+          ptr -= rsize[xcode];
+          isize = 0;
         }
         break;
       case 24: // JGTZ i
         // if the jump lies inside this cache block, and its not forward
         // reference, then it is possible to do it
-        tmp = *p++;        
-        if ((tmp >= block->address) && (tmp < (int)(p-program))) {
-          printf("HERE??\n");
+        tmp = *ptr++;        
+        icount -= rsize[xcode];
+        if (tmp >= block->address) {
           // at first - add to ram_env.pc previous instructions
           *(unsigned int *)(target+2) = (unsigned int)(&ram_env.pc);
-          *(unsigned int *)(target+6) = instr_count;
+          *(unsigned int *)(target+6) = icount;
 
           // do the jump
           *(unsigned int *)(target+12) = (unsigned int)(&ram_env.r[0]);
           *(unsigned int *)(target+24) = (unsigned int)(&ram_env.pc);
           *(unsigned int *)(target+28) = tmp;
 
-          instr_count = 0;
+          icount = 0;
           // find address
-          addr = block->code;
-          for (i = block->address; i < tmp; i+=2)
-            addr += gen_codes[program[i]].size;
+          if (tmp <= (ptr-program)) {
+            // from beginning
+            addr = (unsigned int)block->code;
+            i = block->address;
+          } else {
+            // from current position
+            addr = (unsigned int)target + icodes[xcode].size - 3;
+            i = ptr-program;
+          }          
+          tmp3 = icodes[xcode].size;
+          tmp2 = target_size+tmp3;
+          for (; (i < tmp) && (tmp2 < cache_size) && tmp3 && (i <= ptr_max); i+=rsize[program[i]]) {
+            tmp3 = icodes[program[i]].size;
+            addr += tmp3;
+            tmp2 += tmp3;
+          }
+          
+          // check
+          if (i != tmp) {
+            // address find failed
+            ptr -= rsize[xcode];
+            isize = 0;
+            break;
+          }
           *(unsigned int *)(target+33) = addr + 3;          
         } else {
-          p-=2;
-          micro_size = 0;
+          ptr -= rsize[xcode];
+          isize = 0;
         }
         break;
       case 25: // JZ i
         // if the jump lies inside this cache block, and its not forward
         // reference, then it is possible to do it
-        tmp = *p++;
+        tmp = *ptr++;
+        icount -= rsize[xcode];
         
-        if ((tmp >= block->address) && (tmp < (int)(p-program))) {
+        if (tmp >= block->address) {
           // at first - add to ram_env.pc previous instructions
           *(unsigned int *)(target+2) = (unsigned int)(&ram_env.pc);
-          *(unsigned int *)(target+6) = instr_count;
+          *(unsigned int *)(target+6) = icount;
 
           // do the jump
           *(unsigned int *)(target+12) = (unsigned int)(&ram_env.r[0]);
           *(unsigned int *)(target+24) = (unsigned int)(&ram_env.pc);
           *(unsigned int *)(target+28) = tmp;
           
-          instr_count = 0;
+          icount = 0;
           // find address
-          addr = block->code;
-          for (i = program+block->address; i < tmp; i+=2)
-            addr += gen_codes[program[i]].size;
+          if (tmp <= (ptr-program)) {
+            // from beginning
+            addr = (unsigned int)block->code;
+            i = block->address;
+          } else {
+            // from current position
+            addr = (unsigned int)target + icodes[xcode].size - 3;
+            i = ptr-program;
+          }          
+          tmp3 = icodes[xcode].size;
+          tmp2 = target_size+tmp3;
+          for (; (i < tmp) && (tmp2 < cache_size) && tmp3 && (i <= ptr_max); i+=rsize[program[i]]) {
+            tmp3 = icodes[program[i]].size;
+            addr += tmp3;
+            tmp2 += tmp3;
+          }
+          
+          // check
+          if (i != tmp) {
+            // address find failed
+            ptr -= rsize[xcode];
+            isize = 0;
+            break;
+          }
           *(unsigned int *)(target+33) = addr + 3;
         } else {
-          p-=2;
-          micro_size = 0;
+          ptr -= rsize[xcode];
+          isize = 0;
         }
         break;        
       default: // other/unknown instruction
-        p--;
+        ptr--;
+        isize = 0;
         break;
     }
 
-    target += micro_size;
-    a_size += micro_size;
+    target += isize;
+    target_size += isize;
 
-    xcode = *p++;
-    micro_size = micro_size ? gen_codes[xcode].size : 0;
+    xcode = *ptr++;
+    isize = isize ? icodes[xcode].size : 0;
   };
-  p--;
+  ptr--;
   
   // renew ram_env.pc
   *target++ = 0x81;
   *target++ = 0x05;
   *(unsigned int *)(target) = (unsigned int)(&ram_env.pc);
   target += 4;
-  *(unsigned int *)(target) = instr_count;
+  *(unsigned int *)(target) = icount;
   target += 4;
-  a_size += 10;
+  target_size += 10;
   
   // "pop %ebp","ret"
   *target++ = 0x5D; *target++ = 0xC3;
-  a_size += 2;
-  block->size = p - program - block->address;
+  target_size += 2;
+  block->size = ptr - program - block->address;
   if (cmd_options & CMD_SUMMARY)
     printf("\t\tBlock translated with size: %d\n", block->size);
   if (cmd_options & CMD_SAVE_CODE) {
@@ -339,7 +386,7 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
     } else
       sprintf((char*)&filename, "code-%x.out", block->address);
     FILE *fout = fopen(filename ,"wb");
-    fwrite(block->code, a_size, 1, fout);
+    fwrite(block->code, target_size, 1, fout);
     fclose(fout);
   }
 }

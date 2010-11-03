@@ -16,7 +16,7 @@ read 2
 read *1
 read *2
 
-; copy process
+; copy
 load *2
 store *1
 
