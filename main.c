@@ -109,18 +109,23 @@ int main(int argc, char *argv[])
   }
 
   if (optind >= argc) {
-    printf("Error: Missing RAM program file name\n\n(Type 'dynamic --help' for help)\n");
+    if (!(cmd_options & CMD_VERBOSE))
+      printf("Error: Missing RAM program file name\n\n(Type 'dynamic --help' for help)\n");
     return ERROR_MISSING_ARGS;
   }
 
   /* first - compile */
   if (cmd_options & CMD_COMPILE) {
-    printf("Compiling file '%s'...\n", input_filename);
+    if (!(cmd_options & CMD_VERBOSE) && !(cmd_options & CMD_LOGTIME))
+      printf("Compiling file '%s'...\n", input_filename);
     if (compile(input_filename, argv[optind])) {
-      printf("\nFix the errors and try again!\n");
+      if (!(cmd_options & CMD_VERBOSE))
+        printf("\nFix the errors and try again!\n");
       return ERROR_COMPILE;
-    } else
-      printf("\nCompile runned OK\n");
+    } else {
+      if (!(cmd_options & CMD_VERBOSE) && !(cmd_options & CMD_LOGTIME))
+        printf("\nCompile runned OK\n");
+    }
     
     if (cmd_options & CMD_COMPILE_ONLY)
       return OK;
@@ -147,7 +152,7 @@ int main(int argc, char *argv[])
   ram_init(INPUT_CHARS);
   cache_init(ram_size);
   
-  if (!(cmd_options & CMD_VERBOSE))
+  if (!(cmd_options & CMD_VERBOSE) && !(cmd_options & CMD_LOGTIME))
     printf("Enter input tape (max. %d chars):", INPUT_CHARS);
   scanf("%s", input_str);
 
@@ -157,7 +162,7 @@ int main(int argc, char *argv[])
     ram_env.input[i] = input_str[i]-'0';
 
   if (cmd_options & CMD_INTERPRET) {
-    if (!(cmd_options & CMD_VERBOSE))
+    if (!(cmd_options & CMD_VERBOSE) && !(cmd_options & CMD_LOGTIME))
       printf("Interpreting...\n");
   
     start = clock();
@@ -177,13 +182,19 @@ int main(int argc, char *argv[])
     end = clock();
     overall_time += (double)((double)end-(double)start);
 
-    if (!(cmd_options & CMD_VERBOSE))
-      printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", status,
-        ram_error(status), overall_time);
+    if (!(cmd_options & CMD_VERBOSE)) {
+      if (!(cmd_options & CMD_LOGTIME))
+        printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", status,
+          ram_error(status), overall_time);
+      else if (log_iter == -1)
+        printf("%lf\n", overall_time);
+    }
 
-    if (!(cmd_options & CMD_VERBOSE))
+    if (!(cmd_options & CMD_VERBOSE) && !(cmd_options & CMD_LOGTIME))
       printf("\nOutput tape:\n\t");
-    ram_output();
+      
+    if (!(cmd_options & CMD_LOGTIME))
+      ram_output();
     printf("\n");
   
     char *input = ram_env.input;
@@ -192,7 +203,7 @@ int main(int argc, char *argv[])
     free(input);
   }
   
-  if (!(cmd_options & CMD_VERBOSE))
+  if (!(cmd_options & CMD_VERBOSE) && !(cmd_options & CMD_LOGTIME))
     printf("Emulating using dynamic translation...\n");
 
   start = clock();
@@ -224,13 +235,19 @@ int main(int argc, char *argv[])
   end = clock();
   overall_time += (double)((double)end-(double)start);
   
-  if (!(cmd_options & CMD_VERBOSE))
-    printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", ram_env.state,
-      ram_error(ram_env.state), overall_time);
+  if (!(cmd_options & CMD_VERBOSE)) {
+    if (!(cmd_options & CMD_LOGTIME))
+      printf("\nDone.\n\tError code: %d (%s)\n\tTime: %lf\n", ram_env.state,
+        ram_error(ram_env.state), overall_time);
+    else if (log_iter == -1)
+      printf("%lf\n", overall_time);    
+  }
   
-  if (!(cmd_options & CMD_VERBOSE))
+  if (!(cmd_options & CMD_VERBOSE) && !(cmd_options & CMD_LOGTIME))
     printf("\nOutput tape:\n\t");
-  ram_output();
+    
+  if (!(cmd_options & CMD_LOGTIME))
+    ram_output();
   
   cache_destroy();
   ram_destroy();
