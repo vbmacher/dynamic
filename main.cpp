@@ -66,26 +66,26 @@ int main(int argc, char *argv[])
     switch(opt) {
       case 'h':
         printf("dynamic 0.22b\nDynamic emulator of RAM programs\n\n" \
-"Usage: dynamic [hS::vsl::L:ic:C] path/to/ram/program\n\n" \
+"Usage: dynamic [hS::vsl::L:idoc:C] path/to/ram/program\n\n" \
 "Options:\n" \
-"\t-h --help                       - This help screen.\n" \
-"\t-S --save-code [[filename_base]]- Lets the dynamic to save generated\n" \
-"\t                                  code to file(s).\n" \
-"\t-v --verbose                    - Hides all output (prints only the\n" \
-"\t                                  results from the output tape).\n" \
-"\t-s --summary                    - Prints summary information while\n" \
-"\t                                  performing the translation.\n" \
-"\t-l --log-time [[n]]             - Log time for every n-th iteration.\n" \
-"\t                                  If n isn't given, log overall time only.\n" \
-"\t                                  The file 'log-time.txt' will be created.\n" \
-"\t-L --loop [n]                   - Loop n times.\n" \
-"\t-i --interpret                  - Perform interpretation.\n" \
-"\t-d --dynamic                    - Perform dynamic translation.\n" \
-"\t                                  If no of the 'i','d','o' options are passed,\n" \
-"\t                                  this is the default option."
-"\t-o --open-cl                    - Perform OpenCL RAM emulation.\n" \
-"\t-c --compile [source_file]      - Compile a source file into the output file.\n" \
-"\t-C --compile-only               - Do not perform emulation after compile.\n\n");
+"  -h --help                  - This help screen.\n" \
+"  -S --save-code [[filename]]- Lets the dynamic to save generated\n" \
+"                               code to file(s).\n" \
+"  -v --verbose               - Hides all output (prints only the\n" \
+"                               results from the output tape).\n" \
+"  -s --summary               - Prints summary information while\n" \
+"                               performing the translation.\n" \
+"  -l --log-time [[n]]        - Log time for every n-th iteration.\n" \
+"                               If n isn't given, log overall time only.\n" \
+"                               The file 'log-time.txt' will be created.\n" \
+"  -L --loop [n]              - Loop n times.\n" \
+"  -i --interpret             - Perform interpretation.\n" \
+"  -d --dynamic               - Perform dynamic translation.\n" \
+"                               If no of the 'i','d','o' options are passed,\n" \
+"                               this is the default option.\n" \
+"  -o --open-cl               - Perform OpenCL RAM emulation.\n" \
+"  -c --compile [source_file] - Compile a source file into the output file.\n" \
+"  -C --compile-only          - Do not perform emulation after compile.\n\n");
         return 0;
       case 'S':
         cmd_options |= CMD_SAVE_CODE;
