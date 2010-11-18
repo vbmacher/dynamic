@@ -240,58 +240,61 @@ int main(int argc, char *argv[])
       free(input);
     }
   
-    if (!(cmd_options & CMD_VERBOSE))
-      printf("Emulating using dynamic translation...\n");
+    if ((cmd_options & CMD_DYNAMIC) 
+         || !(cmd_options & (CMD_INTERPRET | CMD_OPENCL))) {
+      if (!(cmd_options & CMD_VERBOSE))
+        printf("Emulating using dynamic translation...\n");
 
-    start = clock();
-    log_counter = 0;
-    overall_time = 0;
-    do {
-      tmp = cache_get_block(ram_env.pc);
-      if (tmp == NULL) {
-        if ((tmp = cache_create_block(ram_env.pc)) == NULL) {
-          cache_flush();
-          tmp = cache_create_block(ram_env.pc);
-        }
-        dyn_translate(tmp, prog, ram_size);
-      } else if (tmp->size > 0)
-        (*(void (*)())tmp->code)();
-      else
-        ram_env.state = ram_interpret(prog, ram_size);
+      start = clock();
+      log_counter = 0;
+      overall_time = 0;
+      do {
+        tmp = cache_get_block(ram_env.pc);
+        if (tmp == NULL) {
+          if ((tmp = cache_create_block(ram_env.pc)) == NULL) {
+            cache_flush();
+            tmp = cache_create_block(ram_env.pc);
+          }
+          dyn_translate(tmp, prog, ram_size);
+        } else if (tmp->size > 0)
+          (*(void (*)())tmp->code)();
+        else
+          ram_env.state = ram_interpret(prog, ram_size);
 
-      if (cmd_options & CMD_LOGTIME) {
-        if (log_counter < log_iter)
-          log_counter++;
-        else if (log_counter == log_iter) {
-          log_counter = 0;
-          end = clock();
-          fprintf(flog, "%lf\n", (double)((double)end-(double)start));
-          overall_time += (double)((double)end-(double)start);
-          start = end;
+        if (cmd_options & CMD_LOGTIME) {
+          if (log_counter < log_iter)
+            log_counter++;
+          else if (log_counter == log_iter) {
+            log_counter = 0;
+            end = clock();
+            fprintf(flog, "%lf\n", (double)((double)end-(double)start));
+            overall_time += (double)((double)end-(double)start);
+            start = end;
+          }
         }
+      } while ((ram_env.state == RAM_OK) && (ram_env.pc < ram_size));
+      end = clock();
+      overall_time += (double)((double)end-(double)start);
+  
+      if (!(cmd_options & CMD_VERBOSE)) {
+        printf("\nDone.\n\tError code: %d (%s)\n", ram_env.state,
+          ram_error(ram_env.state));
+        if ((cmd_options & CMD_LOGTIME) && (log_iter == -1))
+          fprintf(flog,"%lf\n", overall_time);    
       }
-    } while ((ram_env.state == RAM_OK) && (ram_env.pc < ram_size));
-    end = clock();
-    overall_time += (double)((double)end-(double)start);
   
-    if (!(cmd_options & CMD_VERBOSE)) {
-      printf("\nDone.\n\tError code: %d (%s)\n", ram_env.state,
-        ram_error(ram_env.state));
-      if ((cmd_options & CMD_LOGTIME) && (log_iter == -1))
-        fprintf(flog,"%lf\n", overall_time);    
-    }
-  
-    if (!(cmd_options & CMD_VERBOSE))
-      printf("\nOutput tape:\n\t");
+      if (!(cmd_options & CMD_VERBOSE))
+        printf("\nOutput tape:\n\t");
     
-    ram_output();
-    printf("\n");
+      ram_output();
+      printf("\n");
 
-    char *input = ram_env.input;
-    ram_init(INPUT_CHARS);
-    strcpy(ram_env.input, input);
-    free(input);
-    cache_flush();
+      char *input = ram_env.input;
+      ram_init(INPUT_CHARS);
+      strcpy(ram_env.input, input);
+      free(input);
+      cache_flush();
+    }
 
     if (cmd_options & CMD_OPENCL) {    
       if (!(cmd_options & CMD_VERBOSE))
