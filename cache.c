@@ -7,9 +7,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 
 #include "cache.h"
-#include "main.h"
+#include "main.hpp"
 
 static BASIC_BLOCK *cache;       /* Prekladova cache, to je zaklad. */
 static int freeBlock = 0; /* index dalsieho volneho bloku*/

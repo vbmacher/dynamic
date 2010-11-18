@@ -20,11 +20,18 @@ typedef struct bBAS_BLOCK {
 
 extern int cache_code_size;
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 void cache_init(int program_size);
 void cache_destroy();
 void cache_flush();
 BASIC_BLOCK *cache_get_block(int address);
 BASIC_BLOCK *cache_create_block(int address);
 
+#ifdef  __cplusplus
+}
+#endif
 
 #endif

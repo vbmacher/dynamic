@@ -8,9 +8,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 
 #include "ram.h"
-#include "bin.h"
 
 RAM_env ram_env;
 
@@ -69,7 +69,7 @@ void ram_output() {
  * @param program - pamat s programom
  * @return chybovy kod
  */
-int ram_interpret(const char *program) {
+int ram_interpret(const char *program, int ram_size) {
   int c,t;
 
   if (ram_size < 0) {

@@ -63,6 +63,14 @@
 
 typedef unsigned long SET;
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 int compile(const char *input, const char* output);
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif

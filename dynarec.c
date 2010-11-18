@@ -7,11 +7,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 
 #include "dynarec.h"
 #include "cache.h"
-#include "bin.h"
-#include "main.h"
+#include "main.hpp"
 #include "ram.h"
 
 static int rsize[] = {1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2};
@@ -52,7 +52,7 @@ static gen_code_struct icodes[] = {
  * @param block   - basic block containing the address of target code
  * @param program - original non-translated RAM program
  */
-void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
+void dyn_translate(BASIC_BLOCK *block, const char *program, int ram_size) {
   register unsigned int target_size = 3, isize=0;
   unsigned char *ptr, *target, xcode;
 
@@ -63,7 +63,7 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
   unsigned int cache_size = cache_code_size-12; // the number of bytes of the procedure epilogue
   
   /* BEGINNING */
-  ptr = program + block->address;
+  ptr = (unsigned char*)((int)program + (int)block->address);
   target = (unsigned char *)block->code;
   
   *target++ = 0x55;   // "push %ebp"
@@ -223,14 +223,14 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
           *(unsigned int *)(target+6) = tmp;
           icount = 0;
           // find address
-          if (tmp <= (ptr-program)) {
+          if (tmp <= ((int)ptr-(int)program)) {
             // from beginning
             addr = (unsigned int)block->code;
             i = block->address;
           } else {
             // from current position
             addr = (unsigned int)target + icodes[xcode].size - 3;
-            i = ptr-program;
+            i = (int)ptr-(int)program;
           }          
           tmp3 = icodes[xcode].size;
           tmp2 = target_size+tmp3;
@@ -271,14 +271,14 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
 
           icount = 0;
           // find address
-          if (tmp <= (ptr-program)) {
+          if (tmp <= ((int)ptr-(int)program)) {
             // from beginning
             addr = (unsigned int)block->code;
             i = block->address;
           } else {
             // from current position
             addr = (unsigned int)target + icodes[xcode].size - 3;
-            i = ptr-program;
+            i = (int)ptr-(int)program;
           }          
           tmp3 = icodes[xcode].size;
           tmp2 = target_size+tmp3;
@@ -319,14 +319,14 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
           
           icount = 0;
           // find address
-          if (tmp <= (ptr-program)) {
+          if (tmp <= ((int)ptr-(int)program)) {
             // from beginning
             addr = (unsigned int)block->code;
             i = block->address;
           } else {
             // from current position
             addr = (unsigned int)target + icodes[xcode].size - 3;
-            i = ptr-program;
+            i = (int)ptr-(int)program;
           }          
           tmp3 = icodes[xcode].size;
           tmp2 = target_size+tmp3;
@@ -375,7 +375,7 @@ void dyn_translate(BASIC_BLOCK *block, unsigned char *program) {
   // "pop %ebp","ret"
   *target++ = 0x5D; *target++ = 0xC3;
   target_size += 2;
-  block->size = ptr - program - block->address;
+  block->size = (int)ptr - (int)program - (int)block->address;
   if (cmd_options & CMD_SUMMARY)
     printf("\t\tBlock translated with size: %d\n", block->size);
   if (cmd_options & CMD_SAVE_CODE) {

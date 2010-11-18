@@ -11,10 +11,18 @@
 #include "cache.h"
 
 typedef struct {
-  unsigned char* code;
+  const char* code;
   int size;
 } gen_code_struct;
 
-void dyn_translate(BASIC_BLOCK *block, unsigned char *program);
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
+void dyn_translate(BASIC_BLOCK *block, const char *program, int ram_size);
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif
