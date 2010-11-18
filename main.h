@@ -13,6 +13,7 @@
 #define ERROR_MISSING_ARGS 1
 #define ERROR_LOAD         2
 #define ERROR_COMPILE      3
+#define ERROR_LOGFILE      4
 #define OK                 0
 
 #define CMD_SAVE_CODE      1
@@ -23,6 +24,7 @@
 #define CMD_COMPILE       32
 #define CMD_COMPILE_ONLY  64
 #define CMD_LOGTIME      128
+#define CMD_LOOPS        256
 
 extern int cmd_options;
 extern char *code_filename;

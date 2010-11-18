@@ -65,7 +65,7 @@ int bin_parse(FILE *fin, unsigned char *buffer, const int max_size) {
   unsigned int t;
   while (!feof(fin)) {
     if (p == max_size-1) {
-      printf("Warning: Ignoring some input\n");
+      printf("Warning: Ignoring some input (since position %d)\n", p);
       break;
     }
     fscanf(fin, "%u ", &t);
