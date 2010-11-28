@@ -26,10 +26,10 @@ RAMBin::~RAMBin() {
 }
 
 /**
- * Tato funkcia nacita subor s RAM programom do pamate.
+ * This function loads a file with RAM program in memory.
  *
- * @param filename - nazov suboru
- * @return adresa nacitaneho bufra
+ * @param filename - file name
+ * @return address of the loaded buffer
  */
 bool RAMBin::bin_load(const char *filename) {
     ifstream fin(filename, ios::binary);
@@ -99,9 +99,10 @@ int RAMBin::bin_parse(ifstream *fin, const int max_size) {
     this->program[p-1] = 0;
     return p;
 }
+
 /**
- * Tato funkcia zobrazi binarnu reprezentaciu programu RAM v mnemo-kode.
- * Predpoklada spravnu syntax a samozrejme ze je program nacitany.
+ * This function shows binary representation of RAM program in mnemo-code.
+ * The correct syntax is assumed.
  */
 void RAMBin::bin_print() {
     if (this->program == NULL)

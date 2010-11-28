@@ -12,13 +12,14 @@
 #include "cache.h"
 #include "main.hpp"
 
-static BASIC_BLOCK *cache;       /* Prekladova cache, to je zaklad. */
-static int freeBlock = 0; /* index dalsieho volneho bloku*/
+static BASIC_BLOCK *cache; /* Translation cache, this is the base. */
+static int freeBlock = 0;  /* index od next free block  */
 
 int cache_code_size;
 
 /**
- * Funkcia inicializuje prekladovu cache - vytvori pamat pre N blokov.
+ * The function initializes the translation cache - it allocates memory for N
+ * blocks.
  */
 void cache_init(int program_size) {
   cache = (BASIC_BLOCK *)malloc(CACHE_BLOCKS * sizeof(BASIC_BLOCK));
@@ -28,14 +29,14 @@ void cache_init(int program_size) {
 }
 
 /**
- * Tato funkcia uvolni cache.
+ * The function frees the cache memory.
  */
 void cache_destroy() {
   free(cache);
 }
 
 /**
- * Vyprazdni cache. Vyprazdnuje sa vtedy, ked je plna.
+ * The function flushes the cache. It is flushed only if it is full.
  */
 void cache_flush() {
   memset(cache, 0, CACHE_BLOCKS * sizeof(BASIC_BLOCK));
@@ -43,10 +44,10 @@ void cache_flush() {
 }
 
 /**
- * Funkcia na zaklade adresy najde dany blok.
+ * The function finds a block based on address.
  *
- * @param address - Adresa povodneho programu, na ktorej ma zacinat blok.
- * @return NULL ak sa blok nenasiel, inak blok.
+ * @param address - The address of original program where the block should begin
+ * @return NULL if the block is not found, the block otherwise.
  */
 BASIC_BLOCK *cache_get_block(int address) {
   register int i;
@@ -58,10 +59,10 @@ BASIC_BLOCK *cache_get_block(int address) {
 }
 
 /**
- * Tato funkcia vytvori blok, ak sa da.
+ * This function creates block, if it is possible.
  *
- * @param address - Adresa povodneho programu, na ktorej zacina blok
- * @return blok ak sa to podarilo, inak NULL.
+ * @param address - The address of original program, where the block begins
+ * @return block if the operation was successful, NULL otherwise.
  */
 BASIC_BLOCK *cache_create_block(int address) {
   if (freeBlock >= CACHE_BLOCKS)
