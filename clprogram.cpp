@@ -61,7 +61,7 @@ bool CLprogram::initCL() {
         cerr << "No device available\n";
         return false;
     }
-    queue = cl::CommandQueue(context, devices[0], 0, &error);
+    queue = cl::CommandQueue(context, devices[0], CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &error);
     if (error != CL_SUCCESS) {
         cerr << "CommandQueue::CommandQueue() failed (" << error << ")\n";
     }
@@ -106,18 +106,20 @@ cl::Kernel CLprogram::getKernel(const char* name) {
     return kernel;
 }
 
-bool CLprogram::runKernel(cl::Kernel kernel) {
+bool CLprogram::runKernel(cl::Kernel kernel, cl::Event *event) {
     if (error != CL_SUCCESS)
         return false;
-    error = queue.enqueueNDRangeKernel(kernel, cl::NullRange,
-            cl::NDRange(1), cl::NullRange);
+    error = queue.enqueueTask(kernel, NULL, event);
 
     if (error != CL_SUCCESS) {
-        cerr << "CommandQueue::enqueueNDRangeKernel()" \
+        cerr << "CommandQueue::enqueueTask()" \
             " failed (" << error << ")\n";
         return false;
     }
+    return true;
+}
 
+bool CLprogram::finishAll() {
     error = queue.finish();
     if (error != CL_SUCCESS) {
         cerr << "Event::wait() failed (" << error << ")\n";
@@ -125,3 +127,4 @@ bool CLprogram::runKernel(cl::Kernel kernel) {
     }
     return true;
 }
+

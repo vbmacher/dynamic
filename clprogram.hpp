@@ -27,7 +27,8 @@ public:
     cl_int getError() { return error; }
     bool loadProgram(const char *source);
     cl::Kernel getKernel(const char *name);
-    bool runKernel(cl::Kernel kernel);
+    bool runKernel(cl::Kernel kernel, cl::Event *event = NULL);
+    bool finishAll();
     const cl::Context &getContext() { return context; }
     const cl::CommandQueue &getCommandQueue() { return queue; }
 };
