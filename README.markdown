@@ -1,9 +1,15 @@
 dynamic
 -------
 
-This project is a dynamic translator and emulator of RAM (Random Access Machine) programs. It was created
-to 'test' my abilities to do a dynamic translator. I was not plannig to continue the project, but my interest
-has been increased so now you may expect some inovations, additions and new techniques testing.
+This project is an emulator of RAM (Random Access Machine) programs. It was created
+to 'test' my abilities to perform several emulation techniques (only interesting for me).
+I was not plannig to continue the project, but my interest has been increased so now you
+may expect some inovations, additions and new techniques testing.
+
+The following techniques I have done:
+ * Interpreter
+ * Dynamic translator
+ * Experimental interpreter using OpenCL (!!)
 
 If you have any questions, just ask me.
 
