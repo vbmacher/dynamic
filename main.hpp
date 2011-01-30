@@ -1,5 +1,5 @@
 /**
- * main.h
+ * main.hpp
  *
  * (c) Copyright 2010, P. Jakubèo
  *
@@ -14,6 +14,8 @@
 #define ERROR_LOAD         2
 #define ERROR_COMPILE      3
 #define ERROR_LOGFILE      4
+#define ERROR_INIT         5
+#define ERROR_EXECUTE      6
 #define OK                 0
 
 #define CMD_SAVE_CODE      1
@@ -25,6 +27,8 @@
 #define CMD_COMPILE_ONLY  64
 #define CMD_LOGTIME      128
 #define CMD_LOOPS        256
+#define CMD_OPENCL       512
+#define CMD_DYNAMIC     1024
 
 extern int cmd_options;
 extern char *code_filename;

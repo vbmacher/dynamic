@@ -7,6 +7,10 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
 #include "compiler.h"
 
 static FILE *fin;
@@ -38,10 +42,10 @@ static int address = 0; /* actual absolute address in the code generation proces
 
 
 static void get(void);
-void Row();
-void Instruction();
-void Label();
-void Start();
+void Row(SET K);
+void Instruction(SET K);
+void Label(SET K);
+void Start(SET K);
 
 static void error(char *s, SET K){
   printf("ERROR(%d): %s\n",row,s); /* error message */
@@ -296,11 +300,11 @@ int compile(const char *input, const char *output) {
   int i;
   if ((fin = fopen(input,"rt")) == NULL) {
     printf("ERROR: Input file '%s' cannot be opened!\n", input);
-    return;
+    return COMPILER_ERROR;
   }
   if ((fout = fopen(output,"wt")) == NULL) {
     printf("ERROR: Output file '%s' cannot be opened!\n", output);
-    return;
+    return COMPILER_ERROR;
   }
   TC = (int *)malloc(4096 * sizeof(int));
   memset(TID, 0, 317 * sizeof(XLabel));

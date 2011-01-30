@@ -1,21 +1,21 @@
 [Project]
 FileName=dynamic.dev
 Name=dynamic
-UnitCount=12
+UnitCount=16
 Type=1
 Ver=1
 ObjFiles=
-Includes=
-Libs=
+Includes="C:\Program Files\ATI Stream\include"
+Libs="C:\Program Files\ATI Stream\lib\x86"
 PrivateResource=
 ResourceIncludes=
 MakeIncludes=
-Compiler=-O0_@@_
-CppCompiler=-O0_@@_
-Linker=-O0_@@_
-IsCpp=0
+Compiler=-O3_@@_-m32_@@_-msse2_@@_-Wfloat-equal_@@_-Wpointer-arith_@@_-DATI_OS_VISTA_@@_-g3_@@_-enable-auto-import_@@_
+CppCompiler=-O3_@@_-m32_@@_-msse2_@@_-Wfloat-equal_@@_-Wpointer-arith_@@_-DATI_OS_VISTA_@@_-g3_@@_-ffor-scope_@@_-enable-auto-import_@@_
+Linker=-O3_@@_-lopencl _@@_
+IsCpp=1
 Icon=
-ExeOutput=
+ExeOutput=..\..\dynamic
 ObjectOutput=
 OverrideOutput=0
 OverrideOutputName=dynamic.exe
@@ -27,17 +27,17 @@ CustomMakefile=
 IncludeVersionInfo=0
 SupportXPThemes=0
 CompilerSet=0
-CompilerSettings=0000000000000000000000
+CompilerSettings=
 
 [Unit1]
-FileName=main.c
-CompileCpp=0
+FileName=main.cpp
+CompileCpp=1
 Folder=
 Compile=1
 Link=1
 Priority=1000
 OverrideBuildCmd=0
-BuildCmd=
+BuildCmd=$(CPP) -c main.c -o ../../dynamic/main.o $(CXXFLAGS)
 
 [VersionInfo]
 Major=0
@@ -58,8 +58,8 @@ ProductVersion=
 AutoIncBuildNr=0
 
 [Unit3]
-FileName=bin.h
-CompileCpp=0
+FileName=bin.hpp
+CompileCpp=1
 Folder=
 Compile=1
 Link=1
@@ -108,8 +108,8 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit10]
-FileName=main.h
-CompileCpp=0
+FileName=main.hpp
+CompileCpp=1
 Folder=
 Compile=1
 Link=1
@@ -138,14 +138,14 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit13]
-FileName=main.h
-CompileCpp=0
-Folder=
+FileName=clprogram.cpp
+CompileCpp=1
+Folder=dynamic
 Compile=1
 Link=1
 Priority=1000
 OverrideBuildCmd=0
-BuildCmd=
+BuildCmd=$(CPP) -c clprogram.cpp -o ../../dynamic/clprogram.o $(CXXFLAGS)
 
 [Unit8]
 FileName=cache.c
@@ -155,10 +155,20 @@ Compile=1
 Link=1
 Priority=1000
 OverrideBuildCmd=0
-BuildCmd=
+BuildCmd=$(CPP) -c cache.c -o ../../dynamic/cache.o $(CXXFLAGS)
 
 [Unit2]
-FileName=bin.c
+FileName=bin.cpp
+CompileCpp=1
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=$(CPP) -c bin.c -o ../../dynamic/bin.o $(CXXFLAGS)
+
+[Unit6]
+FileName=dynarec.c
 CompileCpp=0
 Folder=
 Compile=1
@@ -167,9 +177,29 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit6]
-FileName=dynarec.c
-CompileCpp=0
+[Unit14]
+FileName=clprogram.hpp
+CompileCpp=1
+Folder=dynamic
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit15]
+FileName=emucl.cpp
+CompileCpp=1
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit16]
+FileName=emucl.hpp
+CompileCpp=1
 Folder=
 Compile=1
 Link=1

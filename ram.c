@@ -8,14 +8,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 
 #include "ram.h"
-#include "bin.h"
 
 RAM_env ram_env;
 
 /**
- * Tato funkcia inicializuje staticky stav RAM stroja.
+ * The function initializes static state of RAM machine.
  */
 void ram_init(int input_size) {
   ram_env.pc = 0;
@@ -28,15 +28,15 @@ void ram_init(int input_size) {
 }
 
 /**
- * Uvolni pamat.
+ * Frees memory
  */
 void ram_destroy() {
   free(ram_env.input);
 }
 
 /**
- * Tato funkcia vypise chybovy kod.
- * @param error_code cislo chyboveho kodu
+ * The function prints the error code description.
+ * @param error_code the error code
  */
 const char *ram_error(int error_code) {
   switch (error_code) {
@@ -50,7 +50,7 @@ const char *ram_error(int error_code) {
 }
 
 /**
- * Tato funkcia vypise vystupnu pasku na obrazovku.
+ * The function prints out the output tape.
  */
 void ram_output() {
   int stop = ram_env.p_output;
@@ -63,13 +63,13 @@ void ram_output() {
 
 
 /**
- * Tato funkcia interpretuje jednu instrukciu. Teda ide o interpretator.
- * Predpoklada sa, ze semantika aj syntax je spravna.
+ * This function interprets single instruction. This is an interpreter.
+ * It is assumed that the syntax and semantics are correct.
  *
- * @param program - pamat s programom
- * @return chybovy kod
+ * @param program - the memory with program
+ * @return error code (0 - ok)
  */
-int ram_interpret(const char *program) {
+int ram_interpret(const char *program, int ram_size) {
   int c,t;
 
   if (ram_size < 0) {

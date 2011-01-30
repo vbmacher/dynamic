@@ -31,7 +31,7 @@ __kernel waitForRequest(__global uchar *eventslist) {
         barrier(CLK_GLOBAL_MEMORY_FENCE);
         if (eventslist[0])
             return; // cancelAll
-        for (int i = 2; i < MAX_EVENTS_COUNT; i++)
+        for (int i = 2; i < 2+MAX_EVENTS_COUNT; i++)
             if (eventslist[i])
                 return; // got an event!
     }
