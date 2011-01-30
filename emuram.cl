@@ -9,8 +9,6 @@
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 
-
-
 void print_instr(__constant uchar *program, int pc) {
   printf("%d: ", pc);
   switch (program[pc]) {
@@ -73,58 +71,6 @@ void print_instr(__constant uchar *program, int pc) {
 }
 
 /**
- * This method waits for specific event that might happen in any time.
- *
- * The method fires up (exits) when specific event is activated (should be fired).
- * The firing up notifies the host that the event happened.
- *
- * The event with index 0 is called 'cancel all' and causes that all pending events
- * will be cancelled.
- *
- * The event with index 1 is not a real event number, but it holds the error code
- * after event satisfaction.
- *
- * The values of the array are as follows:
- *   0 - means nothing/satisfied
- *   1 - means fire
- *
- * @param eventslist List of all available events (array)
- * @param event The index of the event
- */
-__kernel void waitForEvent(__global uchar *eventslist, ushort event) {
-  barrier(CLK_GLOBAL_MEM_FENCE);
-  printf("CL: I am here!\n");
-  while (!eventslist[event] && !eventslist[0]) {
-    printf("CL: waiting...(eventslist[%d] = %d, eventslist[0] = %d)\n", event, eventslist[event], eventslist[0]);
-    ;
-  }
-  eventslist[0] = 0; // the cancelAll event has nothing common with the host
-}
-
-/**
- * This method waits for satisfying an event in the eventslist. It is not a kernel.
- *
- * @param eventslist The array of all events
- * @param event the index of the event
- */
-short waitForSatisfy(__global uchar *eventslist, ushort event) {
-  // TODO: memory fence on eventslist in the beginning and let it out at the end
-  printf("CL: Firing the event %d\n", event);
-  
-  eventslist[event] = 1;  // TODO: synchronization??
-  barrier(CLK_GLOBAL_MEM_FENCE);
-
-  printf("CL satisfy: After calling barrier()\n");
-
-  eventslist[1] = 0;
-  while (eventslist[event]) // TODO: what about cancelAll ?
-    ;
-  printf("CL: Event completed with error code %d.\n", eventslist[1]);
-  return eventslist[1];
-}
-
-
-/**
  * The RAM emulator - interpreter.
  *
  * @param program
@@ -144,11 +90,8 @@ short waitForSatisfy(__global uchar *eventslist, ushort event) {
  * @param status
  *   The status of the RAM machine.
  * @param eventslist
- *   Array of events available for the RAM emulator.
- *   Structure (indexes):
- *     0 - cancelAll
- *     1 - satisfyError
- *     2 - wait for input
+ *   The list of events - requesting or satisfied.
+ *     0 - Input request event (0 - nothing, 1 - request, 2 - satisfied)
  * @param event_data
  *   Data that will be transferred when satisfying the input event
  */
@@ -171,14 +114,12 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
     if (pc[0] >= ram_size) {
       printf("CL: Error: Address fallout.\n");
       status[0] = 2;
-      eventslist[0] = 1; // cancelAll
       return;
     }
     c = program[pc[0]++];
     if ((c > 0) && (pc[0] >= ram_size)) {
       printf("CL: Error: Address fallout.\n");
       status[0] = 2;
-      eventslist[0] = 1; // cancelAll
       return;
     }
 
@@ -186,22 +127,31 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
     switch (c) {
       case 0: /* HALT */
         status[0] = 3;
-        eventslist[0] = 1; // cancelAll
         return;
       case 1: /* READ i */
-        if (!waitForSatisfy(eventslist, 2))
-            r[program[pc[0]++]] = event_data[0];
-        else {
-            eventslist[0] = 1; //cancelAll
-            return;
+        // test if the input event has been already satisfied
+        printf("OpenCL: eventslist[0] = %d\n", eventslist[0]);
+        if (eventslist[0] == 2) {
+          r[program[pc[0]++]] = event_data[0];
+          eventslist[0] = 0;
+          
+          printf("OpenCL: event satisfied (%d)\n", event_data[0]);
+        } else {
+          // wait for the event = return one instruction back, request event and exit
+          pc[0]--;
+          eventslist[0] = 1;
+          return;
         }
         break;
       case 2: /* READ *i */
-        if (!waitForSatisfy(eventslist, 2))
-            r[r[program[pc[0]++]]] = event_data[0];
-        else {
-            eventslist[0] = 1; //cancelAll
-            return;
+        if (eventslist[0] == 2) {
+          r[r[program[pc[0]++]]] = event_data[0];
+          eventslist[0] = 0;
+          printf("OpenCL: event satisfied (%d)\n", event_data[0]);
+        } else {
+          pc[0]--;
+          eventslist[0] = 1;
+          return;
         }
         break;
       case 3: /* WRITE =i */
@@ -309,7 +259,6 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
       default:
 //        cout << \"Error: unknown insruction.\" << endl;
         status[0] = 1;
-        eventslist[0] = 1;
         return;
     }
     status[0] = 0;
@@ -318,8 +267,6 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
   if (pc[0] >= ram_size) {
   //  cout << \"Error: Address fallout.\" << endl;
     status[0] = 2;
-    eventslist[0] = 1;
     return;
   }
-  eventslist[0] = 1;
 }

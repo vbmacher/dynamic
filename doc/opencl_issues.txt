@@ -1,0 +1,45 @@
+The communication between host and OpenCL 1.1 kernels
+=====================================================
+
+There are 3 theoretical options how to satisfy input read request from OpenCL to host. It goes from operating systems. Operating systems can use three approaches. 
+
+1. The First (and old) is polling - the system sends direct request to a device. After that, the system waits till the device sends an input.
+2. The second one is modern interrupts - if a device catches something, it immediately notifies the system by interrupting it. The system does not therefore spend the time in a waiting loop and can perform other things. (I think, this method will work on OpenCL.)
+3. The last one is DMA - direct memory access. The device, when catches an input, it writes the input directly to a memory without notifying the system. The system can either check the memory for changes in periodes of time, or some other application might wait for it, so system does not have to care, neither to interrupt its activity.
+
+In the OpenCL emulator, the first method I tried, but it does not work. It requires at least two kernels (independent within a workgroup) running simultaneously, or concurrently. Current OpenCL drivers from ATI do not support concurrent independent kernel execution. I don't know if it is worth to expect that in the near future. NVidia did something similar within CUDA (independent kernels not within the same workgroup can be run concurrently) within Fermi cards (however, only 4 independent kernels can be run concurrently for now). Another thing is that CUDA is possible only with GPUs (OpenCL supports CPUs as well). The thing is that it never will be true, it comes from the hardware restrictions - all work-items run the same kernel across the workgroup.
+
+The first method is described here:
+
+kernel1: emulator
+kernel2: event request tracker
+
+Both kernels share a global memory variable named 'eventslist'. The structure of eventslist is as follows:
+  index  description
+    0      cancelAll   - if the value is 1, it means that the tracker should clear all events and quit
+    1      errorCode   - after the host satisfies the event, it stores here the error code of the operation
+    2      sampleEvent - for example, this might be the input request event for keyboard device. The real meaning of the event
+                         is specific for the emulator. The value specify the request (> 0), its like service number.
+    ...
+
+When the emulator (kernel1) needs an input from a device, it sets a value into eventslist array in the proper place and call barrier(CLK_GLOBAL_MEMORY_FENCE). 
+
+Kernel2 might look like this:
+
+__kernel waitForRequest(__global uchar *eventslist) {
+    while (true) {
+        barrier(CLK_GLOBAL_MEMORY_FENCE);
+        if (eventslist[0])
+            return; // cancelAll
+        for (int i = 2; i < 2+MAX_EVENTS_COUNT; i++)
+            if (eventslist[i])
+                return; // got an event!
+    }
+}
+
+I was hoping that independent kernels can be running concurrently - that kernel2 is a real tracker. But it does not work like that. If it would, the kernel2 would end when reaching the event. Since then, kernel1 is waiting for satisfying the event. Host will notice that kernel2 ended (because of OpenCL event) and reads the eventslist from global memory. Then the host checks for event that is requested and perform actions - calls the input read. After that, the host sends the read input back to the OpenCL device (that is readable by kernel1), then it sets the eventslist event request to satisfied, then the eventslist sends back to the OpenCL device. The final step is to execute, or enqueue the kernel2 again. And the process will loop.
+
+At the end of emulation, when kernel1 wants to quit, it sets the cancelAll event to the eventslist. Host (waiting only for kernel2 quit) notices that cancelAll was reached and then starts to wait for kernel1 to quit. After that, it collects all results from global memory to host memory.
+
+
+

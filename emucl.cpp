@@ -19,9 +19,8 @@ using namespace std;
 int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   CLprogram clprogram;
   double overall_time;
-  unsigned char events[3] = {0,0,0}; // events list for the RAM emulator
-  unsigned short event_data = 0; // data for events satisfaction
-  unsigned short waitFor = 2; // wainting for the event no.2 (input)
+  unsigned char events[1] = {0}; // events list for the RAM emulator
+  unsigned short event_data[1] = {0}; // data for events satisfaction
   
   printf("Initializing OpenCL...\n");
   if (!clprogram.initCL())
@@ -42,20 +41,18 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
         RAM_REGISTERS_COUNT * sizeof(cl_uchar), ram_env.r);
   cl::Buffer output(context, CL_MEM_WRITE_ONLY,
         RAM_OUTPUT_SIZE * sizeof(cl_uchar));
-  cl::Buffer eventslist(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        3 * sizeof(cl_uchar), (void *)events);
   cl::Buffer p_output(context, CL_MEM_READ_WRITE, sizeof(cl_ushort));
   cl::Buffer ram_status(context, CL_MEM_WRITE_ONLY, sizeof(cl_ushort));
+  cl::Buffer eventslist(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        1 * sizeof(cl_uchar), (void *)events);
   cl::Buffer eventdata(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-        sizeof(cl_ushort), (void *)&event_data);
+        sizeof(cl_ushort), (void *)event_data);
   
   // setup parameter values
   cl::Kernel kernel;
-  cl::Kernel waitKernel;
   
   try {
     kernel = clprogram.getKernel("ramCL");
-    waitKernel = clprogram.getKernel("waitForEvent");
   } catch (exception& exc) {
     return ERROR_INIT;
   }
@@ -94,67 +91,70 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(Event data) = %d\n", arg_status);
 
-  // set kernel arguments for the kernel "waitForEvents"
-  arg_status = waitKernel.setArg(0, sizeof(cl_mem), (void *)&eventslist);
-  if (cmd_options & CMD_SUMMARY)
-    printf("wait: arg_status(Eventslist) = %d\n", arg_status);
-  arg_status = waitKernel.setArg(1, sizeof(cl_ushort), (void *)&waitFor);
-  if (cmd_options & CMD_SUMMARY)
-    printf("wait: arg_status(Event) = %d\n", arg_status);
-
-
   overall_time = 0;
   cl::Event evt;
   
-  if (!clprogram.runKernel(kernel)) {
-      if (!(cmd_options & CMD_VERBOSE))
-          printf("Error: The kernel was not able to execute (arg_status=%d)!\n", arg_status);
-      return ERROR_EXECUTE;
-  }
-
-  printf("HOST: Going to loop!\n");
+  if (cmd_options & CMD_SUMMARY)
+    printf("HOST: Going to loop!\n");
 
   while (true) {  
-      if (!clprogram.runKernel(waitKernel, &evt)) {
-          if (!(cmd_options & CMD_VERBOSE))
-              printf("Error: The wait kernel was not able to execute (arg_status=%d)!\n", arg_status);
-          return ERROR_EXECUTE;
-      }
-      printf("HOST: waitKernel enqueued.\n");
-  
-      // wait for finish. It is enough to wait for the waitKernel, because both in
-      // the case that event is pending its allright and in the case the emulator
-      // finishes the cancelAll is called so this kernel must finish, too.
-      
-      if (evt.wait() != CL_SUCCESS) {
-          if (!(cmd_options & CMD_VERBOSE))
-              printf("Fatal Error: The wait kernel was not able to quit (arg_status=%d)!\n", arg_status);
-          return ERROR_EXECUTE;
-      }
-  
-  printf("HOST: event catched!\n");
-  
-      // read eventslist memory to the host
-      clprogram.getCommandQueue().enqueueReadBuffer(eventslist,CL_TRUE,0,
-            3 * sizeof(cl_uchar), events);
-      // test for input
-      if (events[2] == 1) {
-          printf("HOST: input read event fired up.\n");
-          // read input
-          event_data = ram_env.input[ram_env.p_input++]; // THE input operation ;)
-          
-          // put the input back to the global memory
-          clprogram.getCommandQueue().enqueueWriteBuffer(eventdata,CL_TRUE,0,
-              sizeof(cl_ushort), &event_data);
+    if (!clprogram.runKernel(kernel, &evt)) {
+      if (!(cmd_options & CMD_VERBOSE))
+        printf("Error: The kernel was not able to execute (arg_status=%d)!\n", arg_status);
+      return ERROR_EXECUTE;
+    }
 
-          // update eventslist in the global memory
-          events[1] = 0; // error code = 0 (OK)
-          events[2] = 0; // satisfied
-          clprogram.getCommandQueue().enqueueWriteBuffer(eventslist,CL_TRUE,0,
-              3 * sizeof(cl_ushort), events);
-      } else {
-          break; // finish the emulator
+    if (cmd_options & CMD_SUMMARY)
+      printf("HOST: Waiting for next event...\n");
+  
+    // wait for finish. It is enough to wait for the waitKernel, because both in
+    // the case that event is pending its allright and in the case the emulator
+    // finishes the cancelAll is called so this kernel must finish, too.
+      
+    if (evt.wait() != CL_SUCCESS) {
+      if (!(cmd_options & CMD_VERBOSE))
+          printf("Fatal Error: The kernel was not able to quit (arg_status=%d)!\n", arg_status);
+      return ERROR_EXECUTE;
+    }
+  
+    if (cmd_options & CMD_SUMMARY)
+      printf("HOST: event catched!\n");
+  
+    // read eventslist memory to the host
+    clprogram.getCommandQueue().enqueueReadBuffer(eventslist,CL_TRUE,0,
+      1 * sizeof(cl_uchar), events);
+    clprogram.getCommandQueue().enqueueReadBuffer(ram_status,CL_TRUE,0,
+      sizeof(cl_ushort), &ram_env.state);
+    if (ram_env.state != RAM_OK)
+      break;
+
+    // test for input request
+    if (events[0] == 1) {
+      if (cmd_options & CMD_SUMMARY)
+        printf("HOST: Event type: INPUT REQUEST\n");
+
+      // read input
+      if (ram_env.p_input >= INPUT_CHARS) {
+        if (!(cmd_options & CMD_VERBOSE))
+          printf("Error: Input tape is at the end!\n");
+        break;
       }
+      event_data[0] = ram_env.input[ram_env.p_input++]; // THE input operation ;)
+      
+      if (cmd_options & CMD_SUMMARY)
+        printf("HOST: Data read = %d\n", event_data[0]);
+          
+      // put the input back to the global memory
+      clprogram.getCommandQueue().enqueueWriteBuffer(eventdata,CL_TRUE,0,
+          sizeof(cl_ushort), (void *)event_data);
+
+      // update eventslist in the global memory
+      events[0] = 2; // satisfied
+      clprogram.getCommandQueue().enqueueWriteBuffer(eventslist,CL_TRUE,0,
+          1 * sizeof(cl_uchar), (void *)events);
+    } else {
+        break; // finish the emulator
+    }
   }
   clprogram.finishAll(); // finish for finish :)
   
@@ -169,8 +169,6 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
         sizeof(cl_ushort), &ram_env.p_output);
   clprogram.getCommandQueue().enqueueReadBuffer(ram_status,CL_TRUE,0,
         sizeof(cl_ushort), &ram_env.state);
-  
-  clprogram.getCommandQueue().finish();
   
   if (!(cmd_options & CMD_VERBOSE)) {
     printf("\nDone.\n\tError code: %d (%s)\n", ram_env.state,
