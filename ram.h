@@ -18,12 +18,12 @@
 #define RAM_REGISTERS_COUNT 100
 
 typedef struct {
-  unsigned int pc;            /* program counter */
-  unsigned int r[RAM_REGISTERS_COUNT]; /* registers */
-  char *input;                /* input tape */
-  char output[RAM_OUTPUT_SIZE];  /* output tape, max. 100 chars */
+  unsigned int pc;                      /* program counter */
+  unsigned int r[RAM_REGISTERS_COUNT];  /* registers */
+  char *input;                          /* input tape */
+  char output[RAM_OUTPUT_SIZE];         /* output tape, max. 100 chars */
   int p_input;              /* pointer to the next cell within the input tape */
-  int p_output;            /* pointer to the next cell within the output tape */
+  int p_output;             /* pointer to the next cell within the output tape */
   int state;                /* state of the RAM machine, used only in dyntran */
 } RAM_env;
 

@@ -1,9 +1,21 @@
 /*
  * emucl.cpp
  *
- * (c) Copyright 2010, P. Jakubco <pjakubco@gmail.com>
+ * (c) Copyright 2010-2011, P. Jakubco <pjakubco@gmail.com>
+ * KISS, YAGNI
  *
- * The OpenCL CPU emulator
+ * The OpenCL RAM emulator
+ 
+ The architecture of PRAM is as follows:
+    
+    P0,P1,P2,...,Pn    - RAM kernels, including own private register tape
+    
+    P[0],P[1],...,P[n] - Programs for RAM kernels
+    
+    M[0],M[1],...,M[k] - shared registers for PRAM,
+                         there can be input and output
+ 
+ 
  */
 
 #include <cstdio>
@@ -15,6 +27,16 @@
 #include "cache.h"
 
 using namespace std;
+
+typedef struct {
+  cl::Buffer pc;
+  cl::Buffer r;
+  cl::Buffer output;
+  cl::Buffer p_output;
+  cl::Buffer ram_status;
+} CLRAM;
+
+CLRAM clram;
 
 int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   CLprogram clprogram;
@@ -32,17 +54,21 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   
   // create memory objects
   const cl::Context context = clprogram.getContext();
+
+  cl_short tmp = 0;
   
   cl::Buffer pprogram(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
         ram_size * sizeof(cl_uchar), (void *)prog);
-  cl::Buffer pc(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        sizeof(cl_ushort), &ram_env.pc);
-  cl::Buffer r(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        RAM_REGISTERS_COUNT * sizeof(cl_uchar), ram_env.r);
-  cl::Buffer output(context, CL_MEM_WRITE_ONLY,
+  clram.pc = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        sizeof(cl_ushort), (void *)&ram_env.pc);
+  clram.r = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        RAM_REGISTERS_COUNT * sizeof(cl_uchar), (void*)ram_env.r);
+  clram.output = cl::Buffer(context, CL_MEM_WRITE_ONLY,
         RAM_OUTPUT_SIZE * sizeof(cl_uchar));
-  cl::Buffer p_output(context, CL_MEM_READ_WRITE, sizeof(cl_ushort));
-  cl::Buffer ram_status(context, CL_MEM_WRITE_ONLY, sizeof(cl_ushort));
+  clram.p_output = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_ushort));
+  clram.ram_status = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_ushort));
+
+  // for communication between host and kernels
   cl::Buffer eventslist(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         1 * sizeof(cl_uchar), (void *)events);
   cl::Buffer eventdata(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
@@ -57,31 +83,31 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
     return ERROR_INIT;
   }
   
-  unsigned short ram_output_size = RAM_OUTPUT_SIZE;
+  tmp = RAM_OUTPUT_SIZE;
   
   int arg_status = 0;
   arg_status = kernel.setArg(0, sizeof(cl_mem), (void *)&pprogram);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM memory) = %d\n", arg_status);
-  arg_status |= kernel.setArg(1, sizeof(cl_mem), (void *)&pc);
+  arg_status |= kernel.setArg(1, sizeof(cl_mem), (void *)&clram.pc);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(PC) = %d\n", arg_status);
-  arg_status |= kernel.setArg(2, sizeof(cl_mem), (void *)&r);
+  arg_status |= kernel.setArg(2, sizeof(cl_mem), (void *)&clram.r);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(registers) = %d\n", arg_status);
   arg_status |= kernel.setArg(3, sizeof(cl_ushort), (void *)&ram_size);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM size) = %d\n", arg_status);
-  arg_status |= kernel.setArg(4, sizeof(cl_mem), (void *)&output);
+  arg_status |= kernel.setArg(4, sizeof(cl_mem), (void *)&clram.output);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(Output tape) = %d\n", arg_status);
-  arg_status |= kernel.setArg(5, sizeof(cl_mem), (void *)&p_output);
+  arg_status |= kernel.setArg(5, sizeof(cl_mem), (void *)&clram.p_output);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(Pointer to output tape) = %d\n", arg_status);
-  arg_status |= kernel.setArg(6, sizeof(cl_ushort), (void *)&ram_output_size);
+  arg_status |= kernel.setArg(6, sizeof(cl_ushort), (void *)&tmp);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(Output tape size) = %d\n", arg_status);
-  arg_status |= kernel.setArg(7, sizeof(cl_mem), (void *)&ram_status);
+  arg_status |= kernel.setArg(7, sizeof(cl_mem), (void *)&clram.ram_status);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM state) = %d\n", arg_status);
   arg_status |= kernel.setArg(8, sizeof(cl_mem), (void *)&eventslist);
@@ -123,7 +149,7 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
     // read eventslist memory to the host
     clprogram.getCommandQueue().enqueueReadBuffer(eventslist,CL_TRUE,0,
       1 * sizeof(cl_uchar), events);
-    clprogram.getCommandQueue().enqueueReadBuffer(ram_status,CL_TRUE,0,
+    clprogram.getCommandQueue().enqueueReadBuffer(clram.ram_status,CL_TRUE,0,
       sizeof(cl_ushort), &ram_env.state);
     if (ram_env.state != RAM_OK)
       break;
@@ -159,15 +185,15 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   clprogram.finishAll(); // finish for finish :)
   
   // copy results from device back to the host
-  clprogram.getCommandQueue().enqueueReadBuffer(output,CL_TRUE,0,
-        RAM_OUTPUT_SIZE * sizeof(cl_uchar), ram_env.output);
-  clprogram.getCommandQueue().enqueueReadBuffer(pc,CL_TRUE,0,
+  clprogram.getCommandQueue().enqueueReadBuffer(clram.output,CL_TRUE,0,
+        RAM_OUTPUT_SIZE * sizeof(cl_uchar), &ram_env.output);
+  clprogram.getCommandQueue().enqueueReadBuffer(clram.pc,CL_TRUE,0,
         sizeof(cl_ushort), &ram_env.pc);
-  clprogram.getCommandQueue().enqueueReadBuffer(r,CL_TRUE,0,
+  clprogram.getCommandQueue().enqueueReadBuffer(clram.r,CL_TRUE,0,
         RAM_REGISTERS_COUNT * sizeof(cl_uchar), ram_env.r);
-  clprogram.getCommandQueue().enqueueReadBuffer(p_output,CL_TRUE,0,
+  clprogram.getCommandQueue().enqueueReadBuffer(clram.p_output,CL_TRUE,0,
         sizeof(cl_ushort), &ram_env.p_output);
-  clprogram.getCommandQueue().enqueueReadBuffer(ram_status,CL_TRUE,0,
+  clprogram.getCommandQueue().enqueueReadBuffer(clram.ram_status,CL_TRUE,0,
         sizeof(cl_ushort), &ram_env.state);
   
   if (!(cmd_options & CMD_VERBOSE)) {
