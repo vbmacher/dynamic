@@ -15,7 +15,7 @@
 #define RAM_DIVISION_BY_ZERO 5
 
 #define RAM_OUTPUT_SIZE 100
-#define RAM_REGISTERS_COUNT 100
+#define RAM_REGISTERS_COUNT 200
 
 typedef struct {
   unsigned int pc;                      /* program counter */

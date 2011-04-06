@@ -19,7 +19,7 @@ RAM_env ram_env;
  */
 void ram_init(int input_size) {
   ram_env.pc = 0;
-  memset(ram_env.r, 0, 100);
+  memset(ram_env.r, 0, RAM_REGISTERS_COUNT);
   ram_env.input = (char *)calloc(1, input_size);
   memset(ram_env.output, 0, RAM_OUTPUT_SIZE);
   ram_env.p_input = 0;

@@ -30,9 +30,7 @@ using namespace std;
 
 typedef struct {
   cl::Buffer pc;
-  cl::Buffer r;
-  cl::Buffer output;
-  cl::Buffer p_output;
+  cl::Buffer M;
   cl::Buffer ram_status;
 } CLRAM;
 
@@ -52,28 +50,35 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   if (!clprogram.loadProgram(RAMBin::load_file("emuram.cl")))
     return ERROR_LOAD;
   
+  // prepare program as kernel argument (N times the same program)
+  char *arg_prog = new char[ram_size * processors];
+  int i;
+
+  for (i =0;i < processors; i++) 
+    memcpy(arg_prog + i*ram_size, prog, ram_size);
+
+  // prepare PC registers for all processors
+  int *arg_pc = new int[processors];
+
+  // prepare all statuses for all processors
+  int *arg_ram_state = new int[processors];
+
   // create memory objects
   const cl::Context context = clprogram.getContext();
 
-  cl_short tmp = 0;
+//__kernel void ramCL(__constant uchar *program, __global ushort *pc, 
+  //                  __global ushort *M, __global ushort *ram_size, 
+    //                ushort INPUT_SIZE, __global ushort *status, ushort debug) {
+
   
   cl::Buffer pprogram(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-        ram_size * sizeof(cl_uchar), (void *)prog);
+        ram_size * processors * sizeof(cl_uchar), (void *)arg_prog);
   clram.pc = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        sizeof(cl_ushort), (void *)&ram_env.pc);
-  clram.r = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        RAM_REGISTERS_COUNT * sizeof(cl_uchar), (void*)ram_env.r);
-  clram.output = cl::Buffer(context, CL_MEM_WRITE_ONLY,
-        RAM_OUTPUT_SIZE * sizeof(cl_uchar));
-  clram.p_output = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_ushort));
-  clram.ram_status = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_ushort));
+        processors * sizeof(cl_ushort), (void *)arg_pc);
+  clram.M = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, // the shared memory
+        RAM_REGISTERS_COUNT * sizeof(cl_uchar), (void*)ram_env.r);  
+  clram.ram_status = cl::Buffer(context, CL_MEM_WRITE_ONLY, processors * sizeof(cl_ushort));
 
-  // for communication between host and kernels
-  cl::Buffer eventslist(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        1 * sizeof(cl_uchar), (void *)events);
-  cl::Buffer eventdata(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-        sizeof(cl_ushort), (void *)event_data);
-  
   // setup parameter values
   cl::Kernel kernel;
   
@@ -82,40 +87,33 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   } catch (exception& exc) {
     return ERROR_INIT;
   }
-  
-  tmp = RAM_OUTPUT_SIZE;
-  
+    
   int arg_status = 0;
+  cl_ushort tmp = INPUT_CHARS;
+  
   arg_status = kernel.setArg(0, sizeof(cl_mem), (void *)&pprogram);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM memory) = %d\n", arg_status);
   arg_status |= kernel.setArg(1, sizeof(cl_mem), (void *)&clram.pc);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(PC) = %d\n", arg_status);
-  arg_status |= kernel.setArg(2, sizeof(cl_mem), (void *)&clram.r);
+  arg_status |= kernel.setArg(2, sizeof(cl_mem), (void *)&clram.M);
   if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(registers) = %d\n", arg_status);
+    printf("arg_status(shared memory) = %d\n", arg_status);
   arg_status |= kernel.setArg(3, sizeof(cl_ushort), (void *)&ram_size);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM size) = %d\n", arg_status);
-  arg_status |= kernel.setArg(4, sizeof(cl_mem), (void *)&clram.output);
+  arg_status |= kernel.setArg(4, sizeof(cl_ushort), (void *)&tmp);
   if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Output tape) = %d\n", arg_status);
-  arg_status |= kernel.setArg(5, sizeof(cl_mem), (void *)&clram.p_output);
-  if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Pointer to output tape) = %d\n", arg_status);
-  arg_status |= kernel.setArg(6, sizeof(cl_ushort), (void *)&tmp);
-  if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Output tape size) = %d\n", arg_status);
-  arg_status |= kernel.setArg(7, sizeof(cl_mem), (void *)&clram.ram_status);
+    printf("arg_status(Input size) = %d\n", arg_status);
+  arg_status |= kernel.setArg(5, sizeof(cl_mem), (void *)&clram.ram_status);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM state) = %d\n", arg_status);
-  arg_status |= kernel.setArg(8, sizeof(cl_mem), (void *)&eventslist);
+
+  tmp = 1; // debug ON
+  arg_status |= kernel.setArg(6, sizeof(cl_ushort), (void *)&tmp);
   if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Eventslist) = %d\n", arg_status);
-  arg_status |= kernel.setArg(9, sizeof(cl_mem), (void *)&eventdata);
-  if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Event data) = %d\n", arg_status);
+    printf("arg_status(Debug) = %d\n", arg_status);
 
   overall_time = 0;
   cl::Event evt;
@@ -123,92 +121,50 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   if (cmd_options & CMD_SUMMARY)
     printf("HOST: Going to loop!\n");
 
-  while (true) {  
-    if (!clprogram.runKernel(kernel, &evt)) {
-      if (!(cmd_options & CMD_VERBOSE))
-        printf("Error: The kernel was not able to execute (arg_status=%d)!\n", arg_status);
-      return ERROR_EXECUTE;
-    }
-
-    if (cmd_options & CMD_SUMMARY)
-      printf("HOST: Waiting for next event...\n");
-  
-    // wait for finish. It is enough to wait for the waitKernel, because both in
-    // the case that event is pending its allright and in the case the emulator
-    // finishes the cancelAll is called so this kernel must finish, too.
-      
-    if (evt.wait() != CL_SUCCESS) {
-      if (!(cmd_options & CMD_VERBOSE))
-          printf("Fatal Error: The kernel was not able to quit (arg_status=%d)!\n", arg_status);
-      return ERROR_EXECUTE;
-    }
-  
-    if (cmd_options & CMD_SUMMARY)
-      printf("HOST: event catched!\n");
-  
-    // read eventslist memory to the host
-    clprogram.getCommandQueue().enqueueReadBuffer(eventslist,CL_TRUE,0,
-      1 * sizeof(cl_uchar), events);
-    clprogram.getCommandQueue().enqueueReadBuffer(clram.ram_status,CL_TRUE,0,
-      sizeof(cl_ushort), &ram_env.state);
-    if (ram_env.state != RAM_OK)
-      break;
-
-    // test for input request
-    if (events[0] == 1) {
-      if (cmd_options & CMD_SUMMARY)
-        printf("HOST: Event type: INPUT REQUEST\n");
-
-      // read input
-      if (ram_env.p_input >= INPUT_CHARS) {
-        if (!(cmd_options & CMD_VERBOSE))
-          printf("Error: Input tape is at the end!\n");
-        break;
-      }
-      event_data[0] = ram_env.input[ram_env.p_input++]; // THE input operation ;)
-      
-      if (cmd_options & CMD_SUMMARY)
-        printf("HOST: Data read = %d\n", event_data[0]);
-          
-      // put the input back to the global memory
-      clprogram.getCommandQueue().enqueueWriteBuffer(eventdata,CL_TRUE,0,
-          sizeof(cl_ushort), (void *)event_data);
-
-      // update eventslist in the global memory
-      events[0] = 2; // satisfied
-      clprogram.getCommandQueue().enqueueWriteBuffer(eventslist,CL_TRUE,0,
-          1 * sizeof(cl_uchar), (void *)events);
-    } else {
-        break; // finish the emulator
-    }
+  if (!clprogram.runKernel(kernel, processors, &evt)) {
+    if (!(cmd_options & CMD_VERBOSE))
+      printf("Error: The kernel was not able to execute (arg_status=%d)!\n", arg_status);
+    return ERROR_EXECUTE;
   }
+
+  if (cmd_options & CMD_SUMMARY)
+    printf("HOST: Waiting for next event...\n");
+  
+  // wait for finish.
+  if (evt.wait() != CL_SUCCESS) {
+    if (!(cmd_options & CMD_VERBOSE))
+        printf("Fatal Error: The kernel was not able to quit well (arg_status=%d)!\n", arg_status);
+    return ERROR_EXECUTE;
+  }
+  
+  if (cmd_options & CMD_SUMMARY)
+    printf("HOST: event catched!\n");
+  
+  clprogram.getCommandQueue().enqueueReadBuffer(clram.ram_status,CL_TRUE,0,
+    processors * sizeof(cl_ushort), &arg_ram_state);
+//    if (arg_ram_state[0] != RAM_OK) // P0 must quit
+  //    break;
+
   clprogram.finishAll(); // finish for finish :)
   
   // copy results from device back to the host
-  clprogram.getCommandQueue().enqueueReadBuffer(clram.output,CL_TRUE,0,
-        RAM_OUTPUT_SIZE * sizeof(cl_uchar), &ram_env.output);
   clprogram.getCommandQueue().enqueueReadBuffer(clram.pc,CL_TRUE,0,
-        sizeof(cl_ushort), &ram_env.pc);
-  clprogram.getCommandQueue().enqueueReadBuffer(clram.r,CL_TRUE,0,
+        sizeof(cl_ushort), &arg_pc);
+  clprogram.getCommandQueue().enqueueReadBuffer(clram.M,CL_TRUE,0,
         RAM_REGISTERS_COUNT * sizeof(cl_uchar), ram_env.r);
-  clprogram.getCommandQueue().enqueueReadBuffer(clram.p_output,CL_TRUE,0,
-        sizeof(cl_ushort), &ram_env.p_output);
   clprogram.getCommandQueue().enqueueReadBuffer(clram.ram_status,CL_TRUE,0,
-        sizeof(cl_ushort), &ram_env.state);
+        sizeof(cl_ushort), &arg_ram_state);
   
   if (!(cmd_options & CMD_VERBOSE)) {
-    printf("\nDone.\n\tError code: %d (%s)\n", ram_env.state,
-      ram_error(ram_env.state));
+    printf("\nDone.\n\tError code: %d (%s)\n", arg_ram_state,
+      ram_error(arg_ram_state[0]));
     if (cmd_options & CMD_LOGTIME)
       fprintf(flog,"%lf\n", overall_time);    
   }
   
   if (!(cmd_options & CMD_VERBOSE))
-    printf("\nOutput tape:\n\t");
-  
-  ram_output();
-  printf("\n");
-  
+    printf("\nM[%d] = %d\n", INPUT_CHARS, ram_env.r[INPUT_CHARS]);
+    
   ram_init(INPUT_CHARS);
   cache_flush();  
 }

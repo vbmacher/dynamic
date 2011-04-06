@@ -29,8 +29,10 @@
 #define CMD_LOOPS        256
 #define CMD_OPENCL       512
 #define CMD_DYNAMIC     1024
+#define CMD_PROCESSORS  2048
 
 extern int cmd_options;
 extern char *code_filename;
+extern int processors;
 
 #endif

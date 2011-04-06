@@ -35,10 +35,12 @@ static struct option options[] =	{{"help", no_argument, NULL, 'h' },
                            {"loop", required_argument, NULL, 'L'},
                            {"open-cl", no_argument, NULL, 'o'},
                            {"dynamic", no_argument, NULL, 'd'},
+                           {"processors", required_argument, NULL, 'p'},
                            {0,0,0,0}};
 int cmd_options;
 char *code_filename;
 char *input_filename;
+int processors = 1;
 
 static RAMBin bin;
 
@@ -58,7 +60,7 @@ int main(int argc, char *argv[])
   
   code_filename = NULL;
   while(1) {
-    opt = getopt_long(argc, argv, "hS::vsl::L:idoc:C", options, &opt_index);
+    opt = getopt_long(argc, argv, "hS::vsl::L:idop:c:C", options, &opt_index);
     
     if (opt == -1)
       break;
@@ -83,7 +85,8 @@ int main(int argc, char *argv[])
 "  -d --dynamic               - Perform dynamic translation.\n" \
 "                               If no of the 'i','d','o' options are passed,\n" \
 "                               this is the default option.\n" \
-"  -o --open-cl               - Perform OpenCL RAM emulation.\n" \
+"  -o --open-cl               - Perform OpenCL PRAM emulation.\n" \
+"  -p --processors            - Set number of RAM processors, using -o option.\n" \
 "  -c --compile [source_file] - Compile a source file into the output file.\n" \
 "  -C --compile-only          - Do not perform emulation after compile.\n\n");
         return 0;
@@ -117,6 +120,14 @@ int main(int argc, char *argv[])
         break;
       case 'o':
         cmd_options |= CMD_OPENCL;
+        break;
+      case 'p':
+        cmd_options |= CMD_PROCESSORS;
+        processors = atoi(optarg);
+        if (processors < 1) {
+            processors = 1;
+            printf("Error: processors se to 1\n");
+        }
         break;
       case 'c':
         cmd_options |= CMD_COMPILE;

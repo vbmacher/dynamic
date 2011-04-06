@@ -119,6 +119,20 @@ bool CLprogram::runKernel(cl::Kernel kernel, cl::Event *event) {
     return true;
 }
 
+bool CLprogram::runKernel(cl::Kernel kernel, unsigned int processors, cl::Event *event) {
+    if (error != CL_SUCCESS)
+        return false;
+    error = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(processors), cl::NullRange, NULL, event);
+
+    if (error != CL_SUCCESS) {
+        cerr << "CommandQueue::enqueueTask()" \
+            " failed (" << error << ")\n";
+        return false;
+    }
+    return true;
+}
+
+
 bool CLprogram::finishAll() {
     error = queue.finish();
     if (error != CL_SUCCESS) {

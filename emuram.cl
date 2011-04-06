@@ -1,14 +1,37 @@
 /**
  * emuram.cl
  *
- * (c) Copyright 2010, P. Jakubco <pjakubco@gmail.com>
+ * (c) Copyright 2010-2011, P. Jakubco <pjakubco@gmail.com>
  *
  * KISS, YAGNI
+ * 
+ * OpenCL emulator of PRAM
+ * 
+ * How to pass program:
+ *   - one big string, programs are in sequential order
+ *   - another parameter is array of positions of start of all programs in the
+ *     string       
  *
  */
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 
+#define RAM_OK 0
+#define RAM_UNKNOWN_INSTRUCTION 1
+#define RAM_ADDRESS_FALLOUT 2
+#define RAM_HALT 3
+#define RAM_OUTPUT_FULL 4
+#define RAM_DIVISION_BY_ZERO 5
+
+
+/**
+ * Dissassembles an instruction. 
+ * 
+ * @param program
+ *    The program tape
+ * @param pc
+ *    Starting position of dissassembling  
+ */
 void print_instr(__constant uchar *program, int pc) {
   printf("%d: ", pc);
   switch (program[pc]) {
@@ -74,199 +97,181 @@ void print_instr(__constant uchar *program, int pc) {
  * The RAM emulator - interpreter.
  *
  * @param program
- *   The RAM program binary, assuming that it is not null
+ *   Array of RAM binary programs in sequential order, assuming that it is
+ *   not null.
  * @param pc 
- *   Program counter register.
- * @param r
- *   Array of all RAM registers (finite, say 100 is enough).
+ *   Array of Program counter register for all RAM programs.
+ * @param M
+ *   Array of all shared registers (finite, say 100 is enough).
  * @param ram_size
- *   Size of the program in bytes, assuming ram_size > 0.
- * @param output
- *   Output tape
- * @param p_output
- *   Pointer to output tape
- * @param RAM_OUTPUT_SIZE
- *   Max. output tape size
+ *   Array of sizes of programs in bytes, assuming ram_size > 0.
+ * @param INPUT_SIZE
+ *   Input size - number of input symbols stored in M, starting at position 0
  * @param status
  *   The status of the RAM machine.
- * @param eventslist
- *   The list of events - requesting or satisfied.
- *     0 - Input request event (0 - nothing, 1 - request, 2 - satisfied)
- * @param event_data
- *   Data that will be transferred when satisfying the input event
+ * @param debug
+ *   If set to 1, the emulator will disassemble and print instructions.
  */
 __kernel void ramCL(__constant uchar *program, __global ushort *pc, 
-                    __global ushort *r, ushort ram_size, __global uchar *output,
-                    __global uint *p_output, ushort RAM_OUTPUT_SIZE, __global ushort *status,
-                    __global uchar *eventslist, __global ushort *event_data) {
+                    __global ushort *M, __global ushort *ram_size, 
+                    ushort INPUT_SIZE, __global ushort *status, ushort debug) {
 
-  size_t i = get_global_id(0);
+  ushort r[100];             // private registers
+  int p_output = INPUT_SIZE; // pointer to the output in M, TODO: bug?
+  int p_input = 0;           // pointer to the input in M
 
-  if (i > 0) return;
-  if (get_local_id(0) > 0) return;
+  size_t i = get_global_id(0); // get processor index
 
-  int c, t;
-
-  status[0] = 0;
-  p_output[0] = 0;
+  int opcode, t;
   
-  while ((pc[0] < ram_size) && (status[0] == 0)) {
-    if (pc[0] >= ram_size) {
-      printf("CL: Error: Address fallout.\n");
-      status[0] = 2;
+  status[i] = RAM_OK;        // status of the PRAM
+  while ((pc[i] < ram_size[i]) && (status[i] == 0)) {
+    if (pc[i] >= ram_size) {
+      printf("CL Error: P_%d Address fallout.\n", i);
+      status[i] = RAM_ADDRESS_FALLOUT;
       return;
     }
-    c = program[pc[0]++];
-    if ((c > 0) && (pc[0] >= ram_size)) {
+    opcode = program[pc[i]++];
+    
+    // test if the next instruction fits into the program size   
+    if ((c > 0) && (pc[i] >= ram_size)) {
       printf("CL: Error: Address fallout.\n");
-      status[0] = 2;
+      status[i] = RAM_ADDRESS_FALLOUT;
       return;
     }
 
-    print_instr(program, pc[0]-1);
-    switch (c) {
+    if (debug == 1)
+      print_instr(program, pc[i]-1);
+    switch (opcode) {
       case 0: /* HALT */
-        status[0] = 3;
+        status[i] = RAM_HALT;
         return;
       case 1: /* READ i */
-        // test if the input event has been already satisfied
-        printf("OpenCL: eventslist[0] = %d\n", eventslist[0]);
-        if (eventslist[0] == 2) {
-          r[program[pc[0]++]] = event_data[0];
-          eventslist[0] = 0;
-          
-          printf("OpenCL: event satisfied (%d)\n", event_data[0]);
-        } else {
-          // wait for the event = return one instruction back, request event and exit
-          pc[0]--;
-          eventslist[0] = 1;
-          return;
-        }
+        mem_fence(CLK_GLOBAL_MEM_FENCE);
+        r[program[pc[i]++]] = M[p_input++];
+        if (debug == 1)          
+          printf("CL: Input read = %d\n", M[p_input-1]);
         break;
       case 2: /* READ *i */
-        if (eventslist[0] == 2) {
-          r[r[program[pc[0]++]]] = event_data[0];
-          eventslist[0] = 0;
-          printf("OpenCL: event satisfied (%d)\n", event_data[0]);
-        } else {
-          pc[0]--;
-          eventslist[0] = 1;
-          return;
-        }
+        mem_fence(CLK_GLOBAL_MEM_FENCE);
+        r[r[program[pc[i]++]]] = M[p_input++];
+        if (debug == 1)
+          printf("CL: Input read = %d\n", M[p_input-1]);
         break;
       case 3: /* WRITE =i */
-        if (p_output[0] >= RAM_OUTPUT_SIZE) {
+        if (p_output >= RAM_OUTPUT_SIZE) {
 //            cout << \"Error: Output tape is full.\" << endl;
-            status[0] = 4;
+            status[i] = RAM_OUTPUT_FULL;
             return;
         }
-        output[p_output[0]++] = program[pc[0]++];
+        mem_fence(CLK_GLOBAL_MEM_FENCE);
+        M[p_output++] = program[pc[i]++];
         break;
       case 4: /* WRITE i */
-        if (p_output[0] >= RAM_OUTPUT_SIZE) {
+        if (p_output >= RAM_OUTPUT_SIZE) {
 //            cout << \"Error: Output tape is full.\" << endl;
-            status[0] = 4;
+            status[i] = RAM_OUTPUT_FULL;
             return;
         }
-        output[p_output[0]++] = r[program[pc[0]++]];
+        mem_fence(CLK_GLOBAL_MEM_FENCE);
+        M[p_output++] = r[program[pc[i]++]];
         break;
       case 5: /* WRITE *i */
-        if (p_output[0] >= RAM_OUTPUT_SIZE) {
+        if (p_output >= RAM_OUTPUT_SIZE) {
 //            cout << \"Error: Output tape is full.\" << endl;
-            status[0] = 4;
+            status[i] = RAM_OUTPUT_FULL;
             return;
         }
-        output[p_output[0]++] = r[r[program[pc[0]++]]];
+        mem_fence(CLK_GLOBAL_MEM_FENCE);
+        M[p_output++] = r[r[program[pc[i]++]]];
         break;
       case 6: /* LOAD =i */
-        r[0] = program[pc[0]++];
+        r[0] = program[pc[i]++];
         break;
       case 7: /* LOAD i */
-        r[0] = r[program[pc[0]++]];
+        r[0] = r[program[pc[i]++]];
         break;
       case 8: /* LOAD *i */
-        r[0] = r[r[program[pc[0]++]]];
+        r[0] = r[r[program[pc[i]++]]];
         break;
       case 9: /* STORE i */
-        r[program[pc[0]++]] = r[0];
+        r[program[pc[i]++]] = r[0];
         break;
       case 10: /* STORE *i */
-        r[r[program[pc[0]++]]] = r[0];
+        r[r[program[pc[i]++]]] = r[0];
         break;
       case 11: /* ADD =i */
-        r[0] += program[pc[0]++];
+        r[0] += program[pc[i]++];
         break;
       case 12: /* ADD i */
-        r[0] += r[program[pc[0]++]];
+        r[0] += r[program[pc[i]++]];
         break;
       case 13: /* ADD *i */
-        r[0] += r[r[program[pc[0]++]]];
+        r[0] += r[r[program[pc[i]++]]];
         break;
       case 14: /* SUB =i */
-        r[0] -= program[pc[0]++];
+        r[0] -= program[pc[i]++];
         break;
       case 15: /* SUB i */
-        r[0] -= r[program[pc[0]++]];
+        r[0] -= r[program[pc[i]++]];
         break;
       case 16: /* SUB *i */
-        r[0] -= r[r[program[pc[0]++]]];
+        r[0] -= r[r[program[pc[i]++]]];
         break;
       case 17: /* MUL =i */
-        r[0] *= program[pc[0]++];
+        r[0] *= program[pc[i]++];
         break;
       case 18: /* MUL i */
-        r[0] *= r[program[pc[0]++]];
+        r[0] *= r[program[pc[i]++]];
         break;
       case 19: /* MUL *i */
-        r[0] *= r[r[program[pc[0]++]]];
+        r[0] *= r[r[program[pc[i]++]]];
         break;
       case 20: /* DIV =i */
-        t = program[pc[0]++];
+        t = program[pc[i]++];
         if (!t) {
 //          cout << \"Error: division by zero.\" << endl;
-          status[0] = 5;
+          status[i] = RAM_DIVISION_ZERO;
           return;
         }
         r[0] /= t;
         break;
       case 21: /* DIV i */
-        t = r[program[pc[0]++]];
+        t = r[program[pc[i]++]];
         if (!t) {
 //          cout << \"Error: division by zero.\" << endl;
-          status[0] = 5;
+          status[i] = RAM_DIVISION_ZERO;
           return;
         }
         r[0] /= t;
         break;
       case 22: /* DIV *i */
-        t = r[r[program[pc[0]++]]];
+        t = r[r[program[pc[i]++]]];
         if (!t) {
-//          cout << \"Error: division by zero.\" << endl;
-          status[0] = 5;
+          status[i] = RAM_DIVISION_ZERO;
           return;
         }
         r[0] /= t;
         break;
       case 23: /* JMP i */
-        pc[0] = program[pc[0]];
+        pc[i] = program[pc[i]];
         break;
       case 24: /* JGTZ i */
-        pc[0] = (r[0] > 0) ? program[pc[0]] : pc[0] + 1;
+        pc[i] = (r[0] > 0) ? program[pc[i]] : pc[i] + 1;
         break;
       case 25: /* JZ i */
-        pc[0] = (r[0] == 0) ? program[pc[0]] : pc[0] + 1;
+        pc[i] = (r[0] == 0) ? program[pc[i]] : pc[i] + 1;
         break;
       default:
-//        cout << \"Error: unknown insruction.\" << endl;
-        status[0] = 1;
+        status[i] = RAM_UNKNOWN_INSTRUCTION;
         return;
     }
-    status[0] = 0;
+    status[i] = RAM_OK;
   }
-  output[p_output[0]] = 0;
-  if (pc[0] >= ram_size) {
-  //  cout << \"Error: Address fallout.\" << endl;
-    status[0] = 2;
+  mem_fence(CLK_GLOBAL_MEM_FENCE);
+  M[p_output] = 0;
+  if (pc[i] >= ram_size) {
+    status[0] = RAM_ADDRESS_FALLOUT;
     return;
   }
 }
