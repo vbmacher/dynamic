@@ -125,14 +125,14 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
   int opcode, t;
   
   if (debug) {
-    printf("Processor %d running...\n", i);
-    printf("  Basic info: ram_size[%d]=%d, pc[%d]=%d, p_input=0\n\n", i,ram_size[i],i,pc[i]);
+    printf("Processor P[%d] running...\n", i);
+    printf("  > ram_size[%d]=%d\n  > pc[%d]=%d\n  > p_input=0\n\n", i,ram_size[i],i,pc[i]);
   }
 
   status[i] = RAM_OK;        // status of the PRAM
   while ((pc[i] < ram_size[i]*(i+1)) && (status[i] == 0)) {
     if (pc[i] >= ram_size[i]*(i+1)) {
-      printf("CL Error: P_%d Address fallout.\n", i);
+      printf("CL_Error: P[%d] Address fallout.\n", i);
       status[i] = RAM_ADDRESS_FALLOUT;
       return;
     }
@@ -155,13 +155,13 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         mem_fence(CLK_GLOBAL_MEM_FENCE);
         r[program[pc[i]++]] = M[p_input++];
         if (debug == 1)          
-          printf("CL: Input read = %d\n", M[p_input-1]);
+          printf("CL_Info: P[%d] read M[%d]=%d\n", i, p_input-1, M[p_input-1]);
         break;
       case 2: /* READ *i */
         mem_fence(CLK_GLOBAL_MEM_FENCE);
         r[r[program[pc[i]++]]] = M[p_input++];
         if (debug == 1)
-          printf("CL: Input read = %d\n", M[p_input-1]);
+          printf("CL_Info: P[%d] read M[%d]=%d\n", i, p_input-1, M[p_input-1]);
         break;
       case 3: /* WRITE =i */
  //       if (p_output >= RAM_OUTPUT_SIZE) {

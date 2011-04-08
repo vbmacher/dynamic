@@ -74,18 +74,11 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
 
   // prepare INPUT tape
   cl_ushort arg_M[RAM_REGISTERS_COUNT];
-  for (i = 0; i < INPUT_CHARS; i++) {
+  for (i = 0; i < INPUT_CHARS; i++)
     arg_M[i] = (cl_ushort) ram_env.input[i];
-    printf("Input: %d\n", (int)arg_M[i]);
-  }
 
   // create memory objects
   const cl::Context context = clprogram.getContext();
-
-//__kernel void ramCL(__constant uchar *program, __global ushort *pc, 
-  //                  __global ushort *M, __global ushort *ram_size, 
-    //                ushort INPUT_SIZE, __global ushort *status, ushort debug) {
-
   
   cl::Buffer pprogram(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
         ram_size * processors * sizeof(cl_uchar), (void *)arg_prog);
@@ -157,21 +150,16 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   
   if (cmd_options & CMD_SUMMARY)
     printf("HOST: kernel finished!\n");
-  
- // clprogram.getCommandQueue().enqueueReadBuffer(clram.ram_status,CL_TRUE,0,
-   // processors * sizeof(cl_ushort), &arg_ram_state);
-//    if (arg_ram_state[0] != RAM_OK) // P0 must quit
-  //    break;
 
-  clprogram.finishAll(); // finish for finish :)
-  
   // copy results from device back to the host
   clprogram.getCommandQueue().enqueueReadBuffer(clram.pc,CL_TRUE,0,
-        processors * sizeof(cl_ushort), &arg_pc);
+        processors * sizeof(cl_ushort), arg_pc);
   clprogram.getCommandQueue().enqueueReadBuffer(clram.M,CL_TRUE,0,
-        RAM_REGISTERS_COUNT * sizeof(cl_ushort), &arg_M);
+        RAM_REGISTERS_COUNT * sizeof(cl_ushort), arg_M);
   clprogram.getCommandQueue().enqueueReadBuffer(clram.ram_status,CL_TRUE,0,
-        processors * sizeof(cl_ushort), &arg_ram_state);
+        processors * sizeof(cl_ushort), arg_ram_state);
+
+  clprogram.finishAll(); // finish for finish :)
   
   if (!(cmd_options & CMD_VERBOSE)) {
     printf("\nDone.\n\tError code: %d (%s)\n", arg_ram_state[0],
@@ -180,11 +168,14 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
       fprintf(flog,"%lf\n", overall_time);    
   }
   
-  if (!(cmd_options & CMD_VERBOSE)) {
+  if (cmd_options & CMD_SUMMARY) {
     printf("\nM[%d] = %d\n", INPUT_CHARS, arg_M[INPUT_CHARS]);
     printf("M[%d] = %d\n", INPUT_CHARS+1, arg_M[INPUT_CHARS+1]);
     printf("M[%d] = %d\n", INPUT_CHARS+2, arg_M[INPUT_CHARS+2]);
-    printf("M[%d] = %d\n", INPUT_CHARS+3, arg_M[INPUT_CHARS+3]);
+    printf("M[%d] = %d\n\n", INPUT_CHARS+3, arg_M[INPUT_CHARS+3]);
+
+    for (i = 0; i < processors; i++)
+      printf("PC[%d] = %d\n", i, arg_pc[i]);
   }
 
   ram_init(INPUT_CHARS);
