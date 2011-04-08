@@ -30,6 +30,7 @@ bool CLprogram::initCL() {
     error = cl::Platform::get(&platforms);
     if (error != CL_SUCCESS) {
         cerr << "Platform::get() failed (" << error << ")" << endl;
+        printf("The hexa code: %x\n", error);
         return false;
     }
     

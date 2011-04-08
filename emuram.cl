@@ -124,9 +124,14 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
 
   int opcode, t;
   
+  if (debug) {
+    printf("Processor %d running...\n", i);
+    printf("  Basic info: ram_size[%d]=%d, pc[%d]=%d, p_input=0\n\n", i,ram_size[i],i,pc[i]);
+  }
+
   status[i] = RAM_OK;        // status of the PRAM
-  while ((pc[i] < ram_size[i]) && (status[i] == 0)) {
-    if (pc[i] >= ram_size) {
+  while ((pc[i] < ram_size[i]*(i+1)) && (status[i] == 0)) {
+    if (pc[i] >= ram_size[i]*(i+1)) {
       printf("CL Error: P_%d Address fallout.\n", i);
       status[i] = RAM_ADDRESS_FALLOUT;
       return;
@@ -134,13 +139,13 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
     opcode = program[pc[i]++];
     
     // test if the next instruction fits into the program size   
-    if ((c > 0) && (pc[i] >= ram_size)) {
-      printf("CL: Error: Address fallout.\n");
-      status[i] = RAM_ADDRESS_FALLOUT;
-      return;
-    }
+   // if ((c > 0) && (pc[i] >= ram_size[i]*(i+1))) {
+ //     printf("CL: Error: Address fallout.\n");
+   //   status[i] = RAM_ADDRESS_FALLOUT;
+     // return;
+   // }
 
-    if (debug == 1)
+    if (debug)
       print_instr(program, pc[i]-1);
     switch (opcode) {
       case 0: /* HALT */
@@ -159,29 +164,29 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
           printf("CL: Input read = %d\n", M[p_input-1]);
         break;
       case 3: /* WRITE =i */
-        if (p_output >= RAM_OUTPUT_SIZE) {
+ //       if (p_output >= RAM_OUTPUT_SIZE) {
 //            cout << \"Error: Output tape is full.\" << endl;
-            status[i] = RAM_OUTPUT_FULL;
-            return;
-        }
+   //         status[i] = RAM_OUTPUT_FULL;
+    //        return;
+      //  }
         mem_fence(CLK_GLOBAL_MEM_FENCE);
         M[p_output++] = program[pc[i]++];
         break;
       case 4: /* WRITE i */
-        if (p_output >= RAM_OUTPUT_SIZE) {
+  //      if (p_output >= RAM_OUTPUT_SIZE) {
 //            cout << \"Error: Output tape is full.\" << endl;
-            status[i] = RAM_OUTPUT_FULL;
-            return;
-        }
+    //        status[i] = RAM_OUTPUT_FULL;
+      //      return;
+       // }
         mem_fence(CLK_GLOBAL_MEM_FENCE);
         M[p_output++] = r[program[pc[i]++]];
         break;
       case 5: /* WRITE *i */
-        if (p_output >= RAM_OUTPUT_SIZE) {
+      //  if (p_output >= RAM_OUTPUT_SIZE) {
 //            cout << \"Error: Output tape is full.\" << endl;
-            status[i] = RAM_OUTPUT_FULL;
-            return;
-        }
+    //        status[i] = RAM_OUTPUT_FULL;
+  //          return;
+//        }
         mem_fence(CLK_GLOBAL_MEM_FENCE);
         M[p_output++] = r[r[program[pc[i]++]]];
         break;
@@ -231,7 +236,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         t = program[pc[i]++];
         if (!t) {
 //          cout << \"Error: division by zero.\" << endl;
-          status[i] = RAM_DIVISION_ZERO;
+          status[i] = RAM_DIVISION_BY_ZERO;
           return;
         }
         r[0] /= t;
@@ -240,7 +245,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         t = r[program[pc[i]++]];
         if (!t) {
 //          cout << \"Error: division by zero.\" << endl;
-          status[i] = RAM_DIVISION_ZERO;
+          status[i] = RAM_DIVISION_BY_ZERO;
           return;
         }
         r[0] /= t;
@@ -248,7 +253,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
       case 22: /* DIV *i */
         t = r[r[program[pc[i]++]]];
         if (!t) {
-          status[i] = RAM_DIVISION_ZERO;
+          status[i] = RAM_DIVISION_BY_ZERO;
           return;
         }
         r[0] /= t;
@@ -270,7 +275,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
   }
   mem_fence(CLK_GLOBAL_MEM_FENCE);
   M[p_output] = 0;
-  if (pc[i] >= ram_size) {
+  if (pc[i] >= ram_size[i]*(i+1)) {
     status[0] = RAM_ADDRESS_FALLOUT;
     return;
   }
