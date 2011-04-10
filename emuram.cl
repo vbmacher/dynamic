@@ -32,8 +32,8 @@
  * @param pc
  *    Starting position of dissassembling  
  */
-void print_instr(__constant uchar *program, int pc) {
-  printf("%d: ", pc);
+void print_instr(int i, __constant uchar *program, int pc) {
+  printf("P[%d] %d: ", i,pc);
   switch (program[pc]) {
   case 0: printf("\tHALT\n");
       break;
@@ -146,7 +146,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
    // }
 
     if (debug)
-      print_instr(program, pc[i]-1);
+      print_instr(i,program, pc[i]-1);
     switch (opcode) {
       case 0: /* HALT */
         status[i] = RAM_HALT;
@@ -272,6 +272,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         return;
     }
     status[i] = RAM_OK;
+    barrier(CLK_GLOBAL_MEM_FENCE);
   }
   mem_fence(CLK_GLOBAL_MEM_FENCE);
   M[p_output] = 0;
