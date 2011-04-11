@@ -37,8 +37,9 @@ typedef struct {
 
 CLRAM clram;
 
-int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
-  CLprogram clprogram;
+int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog, bool profiling) {
+  CLprogram clprogram(profiling);
+  cl_ulong start, end;
   double overall_time;
   unsigned char events[1] = {0}; // events list for the RAM emulator
   unsigned short event_data[1] = {0}; // data for events satisfaction
@@ -160,6 +161,12 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
         processors * sizeof(cl_ushort), arg_ram_state);
 
   clprogram.finishAll(); // finish for finish :)
+
+  if (clprogram.isProfilingEnabled()) {
+    start = evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+    end = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+    overall_time = (double)(end-start) * 1.0e-9;
+  }
   
   if (!(cmd_options & CMD_VERBOSE)) {
     printf("\nDone.\n\tError code: %d (%s)\n", arg_ram_state[0],

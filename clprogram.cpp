@@ -20,6 +20,11 @@ CLprogram::CLprogram() {
     error = CL_SUCCESS;
 }
 
+CLprogram::CLprogram(bool profilingEnable) {
+    error = CL_SUCCESS;
+    this->profiling = profilingEnable;
+}
+
 CLprogram::~CLprogram() {
 }
 
@@ -62,7 +67,10 @@ bool CLprogram::initCL() {
         cerr << "No device available\n";
         return false;
     }
-    queue = cl::CommandQueue(context, devices[0], CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &error);
+    if (this->profiling)
+        queue = cl::CommandQueue(context, devices[0], CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE, &error);
+    else
+        queue = cl::CommandQueue(context, devices[0], CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &error);
     if (error != CL_SUCCESS) {
         cerr << "CommandQueue::CommandQueue() failed (" << error << ")\n";
     }

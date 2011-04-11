@@ -310,7 +310,10 @@ int main(int argc, char *argv[])
     if (cmd_options & CMD_OPENCL) {    
       if (!(cmd_options & CMD_VERBOSE))
         printf("Emulating using OpenCL...\n\n");
-        cl_execute(prog, ram_size, cmd_options, flog);
+      if (cmd_options & CMD_LOGTIME)
+        cl_execute(prog, ram_size, cmd_options, flog, true);
+      else
+        cl_execute(prog, ram_size, cmd_options, flog, false);
     }
   } while (loops > 0);
   

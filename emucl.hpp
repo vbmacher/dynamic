@@ -9,7 +9,7 @@
 #ifndef __EMUCL__
 #define __EMUCL__
 
-int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog);
+int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog, bool profiling);
 
 
 #endif

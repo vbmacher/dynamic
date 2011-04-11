@@ -20,8 +20,10 @@ private:
     cl::vector<cl::Device> devices;
     cl::Program program;
     cl::CommandQueue queue;
+    bool profiling;
 public:
     CLprogram();
+    CLprogram(bool profilingEnable);
     virtual ~CLprogram();
     bool initCL();
     cl_int getError() { return error; }
@@ -32,6 +34,7 @@ public:
     bool finishAll();
     const cl::Context &getContext() { return context; }
     const cl::CommandQueue &getCommandQueue() { return queue; }
+    bool isProfilingEnabled() { return profiling; }
 };
 
 #endif	/* CLPROGRAM_HPP */
