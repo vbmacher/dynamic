@@ -81,23 +81,17 @@ void print_instr(__constant uchar *program, int pc) {
  *   Array of all RAM registers (finite, say 100 is enough).
  * @param ram_size
  *   Size of the program in bytes, assuming ram_size > 0.
- * @param output
- *   Output tape
- * @param p_output
- *   Pointer to output tape
- * @param RAM_OUTPUT_SIZE
- *   Max. output tape size
  * @param status
  *   The status of the RAM machine.
  * @param eventslist
  *   The list of events - requesting or satisfied.
  *     0 - Input request event (0 - nothing, 1 - request, 2 - satisfied)
+ *     1 - Output request event (0 - nothing, 1 - request, 2 - satisfied)
  * @param event_data
- *   Data that will be transferred when satisfying the input event
+ *   Data that will be transferred when satisfying the input/output event
  */
 __kernel void ramCL(__constant uchar *program, __global ushort *pc, 
-                    __global ushort *r, ushort ram_size, __global uchar *output,
-                    __global uint *p_output, ushort RAM_OUTPUT_SIZE, __global ushort *status,
+                    __global ushort *r, ushort ram_size, __global ushort *status,
                     __global uchar *eventslist, __global ushort *event_data) {
 
   size_t i = get_global_id(0);
@@ -135,7 +129,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
           r[program[pc[0]++]] = event_data[0];
           eventslist[0] = 0;
           
-          printf("OpenCL: event satisfied (%d)\n", event_data[0]);
+          printf("OpenCL: event 0 satisfied (%d)\n", event_data[0]);
         } else {
           // wait for the event = return one instruction back, request event and exit
           pc[0]--;
@@ -147,7 +141,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         if (eventslist[0] == 2) {
           r[r[program[pc[0]++]]] = event_data[0];
           eventslist[0] = 0;
-          printf("OpenCL: event satisfied (%d)\n", event_data[0]);
+          printf("OpenCL: event 0 satisfied (%d)\n", event_data[0]);
         } else {
           pc[0]--;
           eventslist[0] = 1;
@@ -155,28 +149,43 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         }
         break;
       case 3: /* WRITE =i */
-        if (p_output[0] >= RAM_OUTPUT_SIZE) {
-//            cout << \"Error: Output tape is full.\" << endl;
-            status[0] = 4;
-            return;
+        printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
+        if (eventslist[1] == 2) {
+          eventslist[1] = 0;
+          printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
+        } else {
+          // wait for the event = return one instruction back, request event and exit
+          pc[0]--;
+          eventslist[1] = 1;
+          event_data[0] = program[pc[0]++];
+          return;
         }
-        output[p_output[0]++] = program[pc[0]++];
         break;
       case 4: /* WRITE i */
-        if (p_output[0] >= RAM_OUTPUT_SIZE) {
-//            cout << \"Error: Output tape is full.\" << endl;
-            status[0] = 4;
-            return;
+        printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
+        if (eventslist[1] == 2) {
+          eventslist[1] = 0;
+          printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
+        } else {
+          // wait for the event = return one instruction back, request event and exit
+          pc[0]--;
+          eventslist[1] = 1;
+          event_data[0] = r[program[pc[0]++]];
+          return;
         }
-        output[p_output[0]++] = r[program[pc[0]++]];
         break;
       case 5: /* WRITE *i */
-        if (p_output[0] >= RAM_OUTPUT_SIZE) {
-//            cout << \"Error: Output tape is full.\" << endl;
-            status[0] = 4;
-            return;
+        printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
+        if (eventslist[1] == 2) {
+          eventslist[1] = 0;
+          printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
+        } else {
+          // wait for the event = return one instruction back, request event and exit
+          pc[0]--;
+          eventslist[1] = 1;
+          event_data[0] = r[r[program[pc[0]++]]];
+          return;
         }
-        output[p_output[0]++] = r[r[program[pc[0]++]]];
         break;
       case 6: /* LOAD =i */
         r[0] = program[pc[0]++];

@@ -1,7 +1,7 @@
 /*
  * emucl.cpp
  *
- * (c) Copyright 2010, P. Jakubco <pjakubco@gmail.com>
+ * (c) Copyright 2010-2011, P. Jakubco <pjakubco@gmail.com>
  *
  * The OpenCL CPU emulator
  */
@@ -19,7 +19,7 @@ using namespace std;
 int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   CLprogram clprogram;
   double overall_time;
-  unsigned char events[1] = {0}; // events list for the RAM emulator
+  unsigned char events[2] = {0,0}; // events list for the RAM emulator
   unsigned short event_data[1] = {0}; // data for events satisfaction
   
   printf("Initializing OpenCL...\n");
@@ -39,12 +39,9 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
         sizeof(cl_ushort), &ram_env.pc);
   cl::Buffer r(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         RAM_REGISTERS_COUNT * sizeof(cl_uchar), ram_env.r);
-  cl::Buffer output(context, CL_MEM_WRITE_ONLY,
-        RAM_OUTPUT_SIZE * sizeof(cl_uchar));
-  cl::Buffer p_output(context, CL_MEM_READ_WRITE, sizeof(cl_ushort));
   cl::Buffer ram_status(context, CL_MEM_WRITE_ONLY, sizeof(cl_ushort));
   cl::Buffer eventslist(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        1 * sizeof(cl_uchar), (void *)events);
+        2 * sizeof(cl_uchar), (void *)events);
   cl::Buffer eventdata(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
         sizeof(cl_ushort), (void *)event_data);
   
@@ -56,8 +53,6 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   } catch (exception& exc) {
     return ERROR_INIT;
   }
-  
-  unsigned short ram_output_size = RAM_OUTPUT_SIZE;
   
   int arg_status = 0;
   arg_status = kernel.setArg(0, sizeof(cl_mem), (void *)&pprogram);
@@ -72,22 +67,13 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   arg_status |= kernel.setArg(3, sizeof(cl_ushort), (void *)&ram_size);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM size) = %d\n", arg_status);
-  arg_status |= kernel.setArg(4, sizeof(cl_mem), (void *)&output);
-  if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Output tape) = %d\n", arg_status);
-  arg_status |= kernel.setArg(5, sizeof(cl_mem), (void *)&p_output);
-  if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Pointer to output tape) = %d\n", arg_status);
-  arg_status |= kernel.setArg(6, sizeof(cl_ushort), (void *)&ram_output_size);
-  if (cmd_options & CMD_SUMMARY)
-    printf("arg_status(Output tape size) = %d\n", arg_status);
-  arg_status |= kernel.setArg(7, sizeof(cl_mem), (void *)&ram_status);
+  arg_status |= kernel.setArg(4, sizeof(cl_mem), (void *)&ram_status);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(RAM state) = %d\n", arg_status);
-  arg_status |= kernel.setArg(8, sizeof(cl_mem), (void *)&eventslist);
+  arg_status |= kernel.setArg(5, sizeof(cl_mem), (void *)&eventslist);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(Eventslist) = %d\n", arg_status);
-  arg_status |= kernel.setArg(9, sizeof(cl_mem), (void *)&eventdata);
+  arg_status |= kernel.setArg(6, sizeof(cl_mem), (void *)&eventdata);
   if (cmd_options & CMD_SUMMARY)
     printf("arg_status(Event data) = %d\n", arg_status);
 
@@ -122,7 +108,7 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   
     // read eventslist memory to the host
     clprogram.getCommandQueue().enqueueReadBuffer(eventslist,CL_TRUE,0,
-      1 * sizeof(cl_uchar), events);
+      2 * sizeof(cl_uchar), events);
     clprogram.getCommandQueue().enqueueReadBuffer(ram_status,CL_TRUE,0,
       sizeof(cl_ushort), &ram_env.state);
     if (ram_env.state != RAM_OK)
@@ -137,6 +123,7 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
       if (ram_env.p_input >= INPUT_CHARS) {
         if (!(cmd_options & CMD_VERBOSE))
           printf("Error: Input tape is at the end!\n");
+        ram_env.state = RAM_ADDRESS_FALLOUT; // ??
         break;
       }
       event_data[0] = ram_env.input[ram_env.p_input++]; // THE input operation ;)
@@ -152,6 +139,30 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
       events[0] = 2; // satisfied
       clprogram.getCommandQueue().enqueueWriteBuffer(eventslist,CL_TRUE,0,
           1 * sizeof(cl_uchar), (void *)events);
+    else if (events[1] == 1) {
+      if (cmd_options & CMD_SUMMARY)
+        printf("HOST: Event type: OUTPUT REQUEST\n");
+
+      // read data for output
+      clprogram.getCommandQueue().enqueueReadBuffer(eventdata,CL_TRUE,0,
+          sizeof(cl_ushort), (void *)event_data);
+
+      if (cmd_options & CMD_SUMMARY)
+        printf("HOST: Data read = %d\n", event_data[0]);
+
+      // read input
+      if (ram_env.p_output >= RAM_OUTPUT_SIZE) {
+        if (!(cmd_options & CMD_VERBOSE))
+          printf("Error: Output tape is at the end!\n");
+        ram_env.state = RAM_OUTPUT_FULL;
+        break;
+      }
+      ram_env.output[ram_env.p_output++] = event_data[0]; // THE output operation ;)
+
+      // update eventslist in the global memory
+      events[0] = 2; // satisfied
+      clprogram.getCommandQueue().enqueueWriteBuffer(eventslist,CL_TRUE,0,
+          1 * sizeof(cl_uchar), (void *)events);
     } else {
         break; // finish the emulator
     }
@@ -159,14 +170,10 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   clprogram.finishAll(); // finish for finish :)
   
   // copy results from device back to the host
-  clprogram.getCommandQueue().enqueueReadBuffer(output,CL_TRUE,0,
-        RAM_OUTPUT_SIZE * sizeof(cl_uchar), ram_env.output);
   clprogram.getCommandQueue().enqueueReadBuffer(pc,CL_TRUE,0,
         sizeof(cl_ushort), &ram_env.pc);
   clprogram.getCommandQueue().enqueueReadBuffer(r,CL_TRUE,0,
         RAM_REGISTERS_COUNT * sizeof(cl_uchar), ram_env.r);
-  clprogram.getCommandQueue().enqueueReadBuffer(p_output,CL_TRUE,0,
-        sizeof(cl_ushort), &ram_env.p_output);
   clprogram.getCommandQueue().enqueueReadBuffer(ram_status,CL_TRUE,0,
         sizeof(cl_ushort), &ram_env.state);
   
