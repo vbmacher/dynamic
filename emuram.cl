@@ -1,71 +1,71 @@
 /**
  * emuram.cl
  *
- * (c) Copyright 2010, P. Jakubco <pjakubco@gmail.com>
+ * (c) Copyright 2010, P. Jakubco
  *
  * KISS, YAGNI
  *
  */
 
-#pragma OPENCL EXTENSION cl_amd_printf : enable
+//#pragma OPENCL EXTENSION cl_amd_printf : enable
 
 void print_instr(__constant uchar *program, int pc) {
-  printf("%d: ", pc);
+  // printf("%d: ", pc);
   switch (program[pc]) {
-  case 0: printf("\tHALT\n");
+  case 0: // printf("\tHALT\n");
       break;
-  case 1: printf("\tREAD %d\n", (unsigned int) program[pc+1]);
+  case 1: // printf("\tREAD %d\n", (unsigned int) program[pc+1]);
       break;
-  case 2: printf("\tREAD *%d\n", (unsigned int) program[pc+1]);
+  case 2: // printf("\tREAD *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 3: printf("\tWRITE =%d\n", (unsigned int) program[pc+1]);
+  case 3: // printf("\tWRITE =%d\n", (unsigned int) program[pc+1]);
       break;
-  case 4: printf("\tWRITE %d\n", (unsigned int) program[pc+1]);
+  case 4: // printf("\tWRITE %d\n", (unsigned int) program[pc+1]);
       break;
-  case 5: printf("\tWRITE *%d\n", (unsigned int) program[pc+1]);
+  case 5: // printf("\tWRITE *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 6: printf("\tLOAD =%d\n", (unsigned int) program[pc+1]);
+  case 6: // printf("\tLOAD =%d\n", (unsigned int) program[pc+1]);
       break;
-  case 7: printf("\tLOAD %d\n", (unsigned int) program[pc+1]);
+  case 7: // printf("\tLOAD %d\n", (unsigned int) program[pc+1]);
       break;
-  case 8: printf("\tLOAD *%d\n", (unsigned int) program[pc+1]);
+  case 8: // printf("\tLOAD *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 9: printf("\tSTORE %d\n", (unsigned int) program[pc+1]);
+  case 9: // printf("\tSTORE %d\n", (unsigned int) program[pc+1]);
       break;
-  case 10: printf("\tSTORE *%d\n", (unsigned int) program[pc+1]);
+  case 10: // printf("\tSTORE *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 11: printf("\tADD =%d\n", (unsigned int) program[pc+1]);
+  case 11: // printf("\tADD =%d\n", (unsigned int) program[pc+1]);
       break;
-  case 12: printf("\tADD %d\n", (unsigned int) program[pc+1]);
+  case 12: // printf("\tADD %d\n", (unsigned int) program[pc+1]);
       break;
-  case 13: printf("\tADD *%d\n", (unsigned int) program[pc+1]);
+  case 13: // printf("\tADD *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 14: printf("\tSUB =%d\n", (unsigned int) program[pc+1]);
+  case 14: // printf("\tSUB =%d\n", (unsigned int) program[pc+1]);
       break;
-  case 15: printf("\tSUB %d\n", (unsigned int) program[pc+1]);
+  case 15: // printf("\tSUB %d\n", (unsigned int) program[pc+1]);
       break;
-  case 16: printf("\tSUB *%d\n", (unsigned int) program[pc+1]);
+  case 16: // printf("\tSUB *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 17: printf("\tMUL =%d\n", (unsigned int) program[pc+1]);
+  case 17: // printf("\tMUL =%d\n", (unsigned int) program[pc+1]);
       break;
-  case 18: printf("\tMUL %d\n", (unsigned int) program[pc+1]);
+  case 18: // printf("\tMUL %d\n", (unsigned int) program[pc+1]);
       break;
-  case 19: printf("\tMUL *%d\n", (unsigned int) program[pc+1]);
+  case 19: // printf("\tMUL *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 20: printf("\tDIV =%d\n", (unsigned int) program[pc+1]);
+  case 20: // printf("\tDIV =%d\n", (unsigned int) program[pc+1]);
       break;
-  case 21: printf("\tDIV %d\n", (unsigned int) program[pc+1]);
+  case 21: // printf("\tDIV %d\n", (unsigned int) program[pc+1]);
       break;
-  case 22: printf("\tDIV *%d\n", (unsigned int) program[pc+1]);
+  case 22: // printf("\tDIV *%d\n", (unsigned int) program[pc+1]);
       break;
-  case 23: printf("\tJMP %d\n", (unsigned int) program[pc+1]);
+  case 23: // printf("\tJMP %d\n", (unsigned int) program[pc+1]);
       break;
-  case 24: printf("\tJGTZ %d\n", (unsigned int) program[pc+1]);
+  case 24: // printf("\tJGTZ %d\n", (unsigned int) program[pc+1]);
       break;
-  case 25: printf("\tJZ %d\n", (unsigned int) program[pc+1]);
+  case 25: // printf("\tJZ %d\n", (unsigned int) program[pc+1]);
       break;
   default:
-      printf("\t>> UNKNOWN INSTRUCTION <<\n");
+      // printf("\t>> UNKNOWN INSTRUCTION <<\n");
       break;
   }
 }
@@ -106,13 +106,13 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
   
   while ((pc[0] < ram_size) && (status[0] == 0)) {
     if (pc[0] >= ram_size) {
-      printf("CL: Error: Address fallout.\n");
+      // printf("CL: Error: Address fallout.\n");
       status[0] = 2;
       return;
     }
     c = program[pc[0]++];
     if ((c > 0) && (pc[0] >= ram_size)) {
-      printf("CL: Error: Address fallout.\n");
+      // printf("CL: Error: Address fallout.\n");
       status[0] = 2;
       return;
     }
@@ -124,12 +124,12 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         return;
       case 1: /* READ i */
         // test if the input event has been already satisfied
-        printf("OpenCL: eventslist[0] = %d\n", eventslist[0]);
+        // printf("OpenCL: eventslist[0] = %d\n", eventslist[0]);
         if (eventslist[0] == 2) {
           r[program[pc[0]++]] = event_data[0];
           eventslist[0] = 0;
           
-          printf("OpenCL: event 0 satisfied (%d)\n", event_data[0]);
+          // printf("OpenCL: event 0 satisfied (%d)\n", event_data[0]);
         } else {
           // wait for the event = return one instruction back, request event and exit
           pc[0]--;
@@ -141,7 +141,7 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         if (eventslist[0] == 2) {
           r[r[program[pc[0]++]]] = event_data[0];
           eventslist[0] = 0;
-          printf("OpenCL: event 0 satisfied (%d)\n", event_data[0]);
+          // printf("OpenCL: event 0 satisfied (%d)\n", event_data[0]);
         } else {
           pc[0]--;
           eventslist[0] = 1;
@@ -149,10 +149,10 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         }
         break;
       case 3: /* WRITE =i */
-        printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
+        // printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
         if (eventslist[1] == 2) {
           eventslist[1] = 0;
-          printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
+          // printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
         } else {
           // wait for the event = return one instruction back, request event and exit
           pc[0]--;
@@ -162,10 +162,10 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         }
         break;
       case 4: /* WRITE i */
-        printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
+        // printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
         if (eventslist[1] == 2) {
           eventslist[1] = 0;
-          printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
+          // printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
         } else {
           // wait for the event = return one instruction back, request event and exit
           pc[0]--;
@@ -175,10 +175,10 @@ __kernel void ramCL(__constant uchar *program, __global ushort *pc,
         }
         break;
       case 5: /* WRITE *i */
-        printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
+        // printf("OpenCL: eventslist[1] = %d\n", eventslist[1]);
         if (eventslist[1] == 2) {
           eventslist[1] = 0;
-          printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
+          // printf("OpenCL: event 1 satisfied (%d)\n", event_data[0]);
         } else {
           // wait for the event = return one instruction back, request event and exit
           pc[0]--;

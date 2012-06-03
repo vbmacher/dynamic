@@ -23,7 +23,7 @@ private:
 public:
     CLprogram();
     virtual ~CLprogram();
-    bool initCL();
+    bool initCL(int cmd_options);
     cl_int getError() { return error; }
     bool loadProgram(const char *source);
     cl::Kernel getKernel(const char *name);

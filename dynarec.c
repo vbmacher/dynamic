@@ -1,7 +1,7 @@
 /**
  * dynarec.c
  *
- * (c) Copyright 2010, P. Jakubco <pjakubco@gmail.com>
+ * (c) Copyright 2010, P. Jakubco
  *
  */
 

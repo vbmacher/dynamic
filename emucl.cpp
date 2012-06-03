@@ -1,7 +1,7 @@
 /*
  * emucl.cpp
  *
- * (c) Copyright 2010-2011, P. Jakubco <pjakubco@gmail.com>
+ * (c) Copyright 2010-2011, P. Jakubco
  *
  * The OpenCL CPU emulator
  */
@@ -23,7 +23,7 @@ int cl_execute(const char *prog, int ram_size, int cmd_options, FILE *flog) {
   unsigned short event_data[1] = {0}; // data for events satisfaction
   
   printf("Initializing OpenCL...\n");
-  if (!clprogram.initCL())
+  if (!clprogram.initCL(cmd_options))
     return ERROR_INIT;
     
   printf("Loading emulator...\n");

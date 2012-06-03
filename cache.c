@@ -1,7 +1,7 @@
 /**
  * cache.c
  *
- * (c) Copyright 2010, P. Jakubèo
+ * (c) Copyright 2010, P. Jakubco
  *
  */
 

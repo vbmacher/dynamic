@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include "main.hpp"
 
 //#define __CL_ENABLE_EXCEPTIONS
 
@@ -23,7 +24,7 @@ CLprogram::CLprogram() {
 CLprogram::~CLprogram() {
 }
 
-bool CLprogram::initCL() {
+bool CLprogram::initCL(int cmd_options) {
     // Platform info
     cl::vector<cl::Platform> platforms;
 
@@ -46,7 +47,10 @@ bool CLprogram::initCL() {
     cl_context_properties cps[3] = {CL_CONTEXT_PLATFORM, 
         (cl_context_properties)(platforms[0])(), 0};
 
-    this->context = cl::Context(CL_DEVICE_TYPE_CPU, cps, NULL, NULL, &error);
+    if (cmd_options & CMD_GPU)
+        this->context = cl::Context(CL_DEVICE_TYPE_GPU, cps, NULL, NULL, &error);
+    else
+        this->context = cl::Context(CL_DEVICE_TYPE_CPU, cps, NULL, NULL, &error);
     if (error != CL_SUCCESS) {
         cerr << "Context::Context() failed (" << error << ")\n";
         return false;

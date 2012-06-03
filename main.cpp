@@ -1,7 +1,7 @@
 /**
  * main.cpp
  *
- * (c) Copyright 2010, P. Jakubèo
+ * (c) Copyright 2010, P. Jakubco
  *
  * How to build
  * ^^^^^^^^^^^^
@@ -35,6 +35,7 @@ static struct option options[] =	{{"help", no_argument, NULL, 'h' },
                            {"loop", required_argument, NULL, 'L'},
                            {"open-cl", no_argument, NULL, 'o'},
                            {"dynamic", no_argument, NULL, 'd'},
+                           {"gpu", no_argument, NULL, 'g'},
                            {0,0,0,0}};
 int cmd_options;
 char *code_filename;
@@ -58,7 +59,7 @@ int main(int argc, char *argv[])
   
   code_filename = NULL;
   while(1) {
-    opt = getopt_long(argc, argv, "hS::vsl::L:idoc:C", options, &opt_index);
+    opt = getopt_long(argc, argv, "hS::vsl::L:idgoc:C", options, &opt_index);
     
     if (opt == -1)
       break;
@@ -84,6 +85,7 @@ int main(int argc, char *argv[])
 "                               If no of the 'i','d','o' options are passed,\n" \
 "                               this is the default option.\n" \
 "  -o --open-cl               - Perform OpenCL RAM emulation.\n" \
+"  -g --gpu                   - Run the OpenCL emulation on GPU\n" \
 "  -c --compile [source_file] - Compile a source file into the output file.\n" \
 "  -C --compile-only          - Do not perform emulation after compile.\n\n");
         return 0;
@@ -122,8 +124,12 @@ int main(int argc, char *argv[])
         cmd_options |= CMD_COMPILE;
         input_filename = optarg;
         break;
+      case 'g':
+        cmd_options |= CMD_GPU;
+        break;
       case 'C':
         cmd_options |= CMD_COMPILE_ONLY;
+        break;
       default: opt = -1; break;
     }
     if (opt == -1)
