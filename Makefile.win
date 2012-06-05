@@ -7,12 +7,24 @@ WINDRES = windres.exe
 RES  = 
 OBJ  = main.o bin.o ram.o dynarec.o cache.o compiler.o clprogram.o emucl.o $(RES)
 LINKOBJ  = main.o bin.o ram.o dynarec.o cache.o compiler.o clprogram.o emucl.o $(RES)
-LIBS =  -L"C:/Dev-Cpp/lib" -L"C:/Program Files/ATI Stream/lib/x86" -O3 -lopencl   
-INCS =  -I"C:/Dev-Cpp/include"  -I"C:/Program Files/ATI Stream/include" 
-CXXINCS =  -I"C:/Dev-Cpp/lib/gcc/mingw32/3.4.2/include"  -I"C:/Dev-Cpp/include/c++/3.4.2/backward"  -I"C:/Dev-Cpp/include/c++/3.4.2/mingw32"  -I"C:/Dev-Cpp/include/c++/3.4.2"  -I"C:/Dev-Cpp/include"  -I"C:/Program Files/ATI Stream/include" 
+#LIBS =  -L"C:/Dev-Cpp/lib" -L"C:\Program Files (x86)\ATI Stream\lib\x86" -O3 -lopencl
+LIBS =  -L"C:/MinGW2/lib" -L"C:\Program Files (x86)\ATI Stream\lib\x86" -O3 -lopencl
+#LIBS =  -L"C:/MinGW2/lib" -L"C:\Program Files\ATI Stream\lib\x86" -O3 -lopencl
+#LIBS =  -L"C:/MinGW2/lib" -L"C:\Program Files\AMD APP\lib\x86" -O3 -lopencl
+#INCS =  -I"C:/Dev-Cpp/include"  -I"C:/Program Files (x86)/ATI Stream/include" 
+INCS =  -I"C:/MinGW2/include"  -I"C:/Program Files (x86)/ATI Stream/include" 
+#INCS =  -I"C:/MinGW2/include"  -I"C:/Program Files/ATI Stream/include" 
+#INCS =  -I"C:/MinGW2/include"  -I"C:/Program Files/AMD APP/include" 
+#CXXINCS =  -I"C:/Dev-Cpp/lib/gcc/mingw32/3.4.2/include"  -I"C:/Dev-Cpp/include/c++/3.4.2/backward"  -I"C:/Dev-Cpp/include/c++/3.4.2/mingw32"  -I"C:/Dev-Cpp/include/c++/3.4.2"  -I"C:/Dev-Cpp/include"  -I"C:/Program Files (x86)/ATI Stream/include" 
+CXXINCS =  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include/c++/backward"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include/c++/mingw32"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2"  -I"C:/MinGW2/include"  -I"C:/Program Files (x86)/ATI Stream/include" 
+#CXXINCS =  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include/c++/backward"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include/c++/mingw32"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2"  -I"C:/MinGW2/include"  -I"C:/Program Files/ATI Stream/include" 
+#CXXINCS =  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include/c++/backward"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2/include/c++/mingw32"  -I"C:/MinGW2/lib/gcc/mingw32/4.6.2"  -I"C:/MinGW2/include"  -I"C:/Program Files/AMD APP/include"
 BIN  = ../dynamic.exe
 CXXFLAGS = $(CXXINCS) -O3 -m32 -msse2 -Wfloat-equal -Wpointer-arith -DATI_OS_VISTA -g3 -ffor-scope -enable-auto-import  
+#CXXFLAGS = $(CXXINCS) -O3 -m32 -msse2 -Wfloat-equal -Wpointer-arith -DATI_OS_VISTA -g3 -fpermissive -enable-auto-import  
 CFLAGS = $(INCS) -O3 -m32 -msse2 -Wfloat-equal -Wpointer-arith -DATI_OS_VISTA -g3 -enable-auto-import  
+#CFLAGS = $(INCS) -O3 -m32 -msse2 -Wfloat-equal -Wpointer-arith -DATI_OS_VISTA -g3 -enable-auto-import -fpermissive
+
 RM = rm -f
 
 .PHONY: all all-before all-after clean clean-custom
